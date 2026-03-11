@@ -4,7 +4,16 @@ const MAX_CONTEXT_MESSAGES = 10; // last 5 user + 5 assistant (conversation cont
 const MAX_COMPLETION_TOKENS = 100;
 const MODEL = 'gpt-4o-mini';
 
-const SYSTEM_PROMPT = `You are Riverwood Estate's voice agent (DDJAY township, Sector 7 Kharkhauda, 25 acre residential township near IMT Kharkhauda / Maruti Suzuki). Give brief, warm updates on construction and milestones. Reply in 1-3 short sentences. Use Hindi or English to match the customer. Ask about site visits when relevant. No markdown.`;
+function getSystemPrompt(lang) {
+  const base = 'Give brief, warm updates. Reply in 1-3 short sentences. No markdown.';
+  if (lang === 'hi') {
+    return `You are a warm voice agent. ${base} Respond ONLY in Hindi. Write all Hindi text in Devanagari script (e.g. नमस्ते, कैसे हैं).`;
+  }
+  if (lang === 'mr') {
+    return `You are a warm voice agent. ${base} Respond ONLY in Marathi. Write all Marathi text in Devanagari script (e.g. नमस्कार, कसे आहात).`;
+  }
+  return `You are a warm voice agent. ${base} Respond ONLY in English.`;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,6 +60,9 @@ export default async function handler(req, res) {
     return;
   }
 
+  const lang = ['en', 'hi', 'mr'].includes(body.language) ? body.language : 'en';
+  const systemPrompt = getSystemPrompt(lang);
+
   const sanitized = raw
     .slice(-MAX_CONTEXT_MESSAGES)
     .map((m) => ({
@@ -65,7 +77,7 @@ export default async function handler(req, res) {
   }
 
   const openai = new OpenAI({ apiKey });
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...sanitized];
+  const messages = [{ role: 'system', content: systemPrompt }, ...sanitized];
 
   try {
     // 1. Get LLM Reply

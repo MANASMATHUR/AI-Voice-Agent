@@ -9,6 +9,7 @@
   const API_BASE = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
   const conversation = [];
   let recognition = null;
+  let currentLang = 'en'; // en | hi | mr
 
   const el = {
     conversation: document.getElementById('conversation'),
@@ -16,6 +17,7 @@
     voiceBtn: document.getElementById('voice-btn'),
     sendBtn: document.getElementById('send-btn'),
     status: document.getElementById('status'),
+    langBtns: document.querySelectorAll('.lang-btn'),
   };
 
   if (!el.conversation || !el.userInput || !el.sendBtn || !el.status) return;
@@ -62,28 +64,45 @@
     }
   }
 
+  function getSpeechLang() {
+    if (currentLang === 'hi') return 'hi-IN';
+    if (currentLang === 'mr') return 'mr-IN';
+    return 'en-IN';
+  }
+
   function speakWithBrowser(text) {
     if (!window.speechSynthesis || !text) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(String(text).slice(0, 500));
     u.rate = 0.95;
     u.pitch = 1;
+    u.lang = getSpeechLang();
     const voices = window.speechSynthesis.getVoices();
-    const en = voices.find(function (v) { return v.lang.startsWith('en'); });
-    if (en) u.voice = en;
+    const preferred = voices.find(function (v) { return v.lang.startsWith(currentLang === 'hi' ? 'hi' : currentLang === 'mr' ? 'mr' : 'en'); });
+    if (preferred) u.voice = preferred;
     window.speechSynthesis.speak(u);
+  }
+
+  function getGreetingPrompt() {
+    if (currentLang === 'hi') {
+      return 'Greet the customer warmly in Hindi only, in Devanagari script. In 2 short sentences: say hello and ask how you can help today.';
+    }
+    if (currentLang === 'mr') {
+      return 'Greet the customer warmly in Marathi only, in Devanagari script. In 2 short sentences: say hello and ask how you can help today.';
+    }
+    return 'Greet the customer warmly in English only. In 2 short sentences: say hello and ask how you can help today.';
   }
 
   async function startConversation() {
     const health = await apiHealth();
     if (health && health.openai_configured) {
       setStatus('Connecting…');
-      var greetingPrompt = 'You are calling the customer on behalf of Riverwood Estate. In 2–3 short sentences: (1) Greet them warmly in English and Hindi. (2) Share a brief construction progress update for Sector 7 Kharkhauda. (3) Ask if they plan to visit the site soon. Keep it conversational and warm.';
+      var greetingPrompt = getGreetingPrompt();
       try {
         const r = await fetch(API_BASE + '/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [{ role: 'user', content: greetingPrompt }] }),
+          body: JSON.stringify({ messages: [{ role: 'user', content: greetingPrompt }], language: currentLang }),
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || r.statusText);
@@ -123,7 +142,7 @@
       const r = await fetch(API_BASE + '/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversation }),
+        body: JSON.stringify({ messages: conversation, language: currentLang }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Request failed');
@@ -153,7 +172,7 @@
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'en-IN';
+    recognition.lang = getSpeechLang();
     recognition.onresult = function (e) {
       var last = e.results.length - 1;
       var transcript = e.results[last][0].transcript;
@@ -179,6 +198,7 @@
   if (el.voiceBtn) {
     el.voiceBtn.addEventListener('mousedown', function () {
       if (!recognition) return;
+      recognition.lang = getSpeechLang();
       el.voiceBtn.classList.add('recording');
       el.voiceBtn.setAttribute('aria-pressed', 'true');
       setStatus('Listening…');
@@ -191,6 +211,27 @@
     el.voiceBtn.addEventListener('mouseleave', function () {
       if (recognition) try { recognition.stop(); } catch (err) {}
       el.voiceBtn.setAttribute('aria-pressed', 'false');
+    });
+  }
+
+  if (el.langBtns && el.langBtns.length) {
+    el.langBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var lang = btn.getAttribute('data-lang');
+        if (!lang || lang === currentLang) return;
+        currentLang = lang;
+        el.langBtns.forEach(function (b) {
+          var active = b.getAttribute('data-lang') === currentLang;
+          b.classList.toggle('active', active);
+          b.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        if (recognition) recognition.lang = getSpeechLang();
+        setStatus('Language: ' + (currentLang === 'hi' ? 'हिंदी' : currentLang === 'mr' ? 'मराठी' : 'English'));
+
+        conversation.length = 0;
+        el.conversation.innerHTML = '';
+        startConversation();
+      });
     });
   }
 

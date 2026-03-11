@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Voice Agent</title>
-  <meta name="description" content="Talk or type in Hindi or English. The agent remembers the conversation and speaks replies." />
+  <meta name="description" content="Talk or type in English, Hindi, or Marathi. The agent remembers the conversation and speaks replies." />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -13,7 +13,13 @@
   <div class="page-agent">
     <a href="index.html" class="back">← Back</a>
     <h2>Voice Agent</h2>
-    <p class="tagline">Talk or type in Hindi or English. Replies are spoken; the agent remembers context.</p>
+    <p class="tagline">Talk or type in English, Hindi, or Marathi. Replies are spoken; the agent remembers context.</p>
+
+    <div class="lang-toggle" role="group" aria-label="Conversation language">
+      <button type="button" class="lang-btn active" data-lang="en" aria-pressed="true">English</button>
+      <button type="button" class="lang-btn" data-lang="hi" aria-pressed="false">हिंदी</button>
+      <button type="button" class="lang-btn" data-lang="mr" aria-pressed="false">मराठी</button>
+    </div>
 
     <div class="agent-card">
       <h3>Conversation</h3>
