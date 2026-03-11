@@ -3,27 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Voice Agent – Riverwood Challenge</title>
-  <meta name="description" content="AI Voice Agent – Riverwood Estate. Talk or type; agent remembers context." />
+  <title>AI Voice Agent</title>
+  <meta name="description" content="Talk or type in Hindi or English. The agent remembers the conversation and speaks replies." />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <div class="gradient-bar" aria-hidden="true"></div>
 
   <div class="page-agent">
-    <a href="index.html" class="back">← Back to Challenge</a>
-    <h2>AI Voice Agent Prototype</h2>
-    <p class="tagline">Riverwood Estate – Sector 7 Kharkhauda. Greets in Hindi or English; accepts voice or text. Conversation context is remembered.</p>
+    <a href="index.html" class="back">← Back</a>
+    <h2>Voice Agent</h2>
+    <p class="tagline">Talk or type in Hindi or English. Replies are spoken; the agent remembers context.</p>
 
     <div class="agent-card">
       <h3>Conversation</h3>
-      <div id="conversation" class="conversation"></div>
+      <div id="conversation" class="conversation" role="log" aria-live="polite" aria-label="Chat messages"></div>
       <div class="input-row">
-        <input type="text" id="user-input" placeholder="Type your message or use voice..." />
-        <button type="button" class="voice-btn" id="voice-btn" title="Hold to speak">🎤 Voice</button>
+        <input type="text" id="user-input" placeholder="Type or use voice…" aria-label="Your message" autocomplete="off" />
+        <button type="button" class="voice-btn" id="voice-btn" title="Hold to speak" aria-pressed="false">🎤 Voice</button>
         <button type="button" class="btn btn-primary" id="send-btn">Send</button>
       </div>
-      <p id="status" class="status"></p>
+      <p id="status" class="status" aria-live="polite" aria-atomic="true"></p>
     </div>
   </div>
 

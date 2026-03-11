@@ -35,7 +35,7 @@
   function appendMessage(role, content, options) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'msg ' + (role === 'assistant' ? 'assistant' : 'user');
-    const roleLabel = role === 'assistant' ? 'Riverwood Agent' : 'You';
+    const roleLabel = role === 'assistant' ? 'Agent' : 'You';
     const contentClass = options && options.loading ? 'content loading' : 'content';
     msgDiv.innerHTML =
       '<div class="role">' + escapeHtml(roleLabel) + '</div>' +
@@ -93,16 +93,16 @@
         setStatus('Ready. Type or hold Voice to speak. Your response is recorded in the conversation.');
         speakWithBrowser(data.reply);
       } catch (e) {
-        conversation.push({ role: 'assistant', content: 'Welcome to Riverwood Estate. How can I help you today?' });
-        appendMessage('assistant', 'Welcome to Riverwood Estate. How can I help you today?');
+        conversation.push({ role: 'assistant', content: 'Welcome. How can I help you today?' });
+        appendMessage('assistant', 'Welcome. How can I help you today?');
         setStatus('Offline or error. Set OPENAI_API_KEY in Vercel and redeploy.', true);
-        speakWithBrowser('Welcome to Riverwood Estate. How can I help you today?');
+        speakWithBrowser('Welcome. How can I help you today?');
       }
     } else {
-      conversation.push({ role: 'assistant', content: 'Welcome to Riverwood Estate, Sector 7 Kharkhauda. How can I help you today?' });
-      appendMessage('assistant', 'Welcome to Riverwood Estate, Sector 7 Kharkhauda. How can I help you today?');
+      conversation.push({ role: 'assistant', content: 'Welcome. How can I help you today?' });
+      appendMessage('assistant', 'Welcome. How can I help you today?');
       setStatus('Add OPENAI_API_KEY in Vercel project settings, then redeploy.');
-      speakWithBrowser('Welcome to Riverwood Estate. How can I help you today?');
+      speakWithBrowser('Welcome. How can I help you today?');
     }
   }
 
@@ -164,7 +164,10 @@
       setStatus('Voice ended.');
     };
     recognition.onend = function () {
-      if (el.voiceBtn) el.voiceBtn.classList.remove('recording');
+      if (el.voiceBtn) {
+        el.voiceBtn.classList.remove('recording');
+        el.voiceBtn.setAttribute('aria-pressed', 'false');
+      }
     };
   }
 
@@ -177,14 +180,17 @@
     el.voiceBtn.addEventListener('mousedown', function () {
       if (!recognition) return;
       el.voiceBtn.classList.add('recording');
+      el.voiceBtn.setAttribute('aria-pressed', 'true');
       setStatus('Listening…');
       try { recognition.start(); } catch (err) { setStatus('Voice not available.'); }
     });
     el.voiceBtn.addEventListener('mouseup', function () {
       if (recognition) try { recognition.stop(); } catch (err) {}
+      el.voiceBtn.setAttribute('aria-pressed', 'false');
     });
     el.voiceBtn.addEventListener('mouseleave', function () {
       if (recognition) try { recognition.stop(); } catch (err) {}
+      el.voiceBtn.setAttribute('aria-pressed', 'false');
     });
   }
 
