@@ -1,5 +1,5 @@
 /**
- * Riverwood AI Voice Agent – OpenAI-only prototype.
+ * AI Voice Agent – OpenAI-only prototype.
  * Uses /api/chat (Vercel). Voice input: Web Speech API. Voice output: browser TTS.
  * Remembers conversation context (last 10 messages sent to API).
  */
