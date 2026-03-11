@@ -84,13 +84,14 @@
   }
 
   function getGreetingPrompt() {
+    var instruction = 'You are calling the customer. In one short intro message (3–4 sentences), do all of the following: (1) Greet them warmly. (2) Share a brief construction progress update (e.g. foundation work, next milestones). (3) Ask if they plan to visit the site soon. Keep it conversational and warm.';
     if (currentLang === 'hi') {
-      return 'Greet the customer warmly in Hindi only, in Devanagari script. In 2 short sentences: say hello and ask how you can help today.';
+      return instruction + ' Respond ONLY in Hindi, in Devanagari script.';
     }
     if (currentLang === 'mr') {
-      return 'Greet the customer warmly in Marathi only, in Devanagari script. In 2 short sentences: say hello and ask how you can help today.';
+      return instruction + ' Respond ONLY in Marathi, in Devanagari script.';
     }
-    return 'Greet the customer warmly in English only. In 2 short sentences: say hello and ask how you can help today.';
+    return instruction + ' Respond ONLY in English.';
   }
 
   async function startConversation() {
@@ -109,7 +110,7 @@
         conversation.push({ role: 'user', content: greetingPrompt });
         conversation.push({ role: 'assistant', content: data.reply });
         appendMessage('assistant', data.reply);
-        setStatus('Ready. Type or hold Voice to speak. Your response is recorded in the conversation.');
+        setStatus('Ready. Reply by typing or voice—your response is recorded below.');
         speakWithBrowser(data.reply);
       } catch (e) {
         conversation.push({ role: 'assistant', content: 'Welcome. How can I help you today?' });

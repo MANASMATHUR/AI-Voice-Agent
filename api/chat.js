@@ -5,14 +5,14 @@ const MAX_COMPLETION_TOKENS = 100;
 const MODEL = 'gpt-4o-mini';
 
 function getSystemPrompt(lang) {
-  const base = 'Give brief, warm updates. Reply in 1-3 short sentences. No markdown.';
+  const base = 'You are a warm voice agent calling customers. Give brief, friendly updates on construction progress and milestones. Ask about site visits when relevant. Reply in 1-3 short sentences. No markdown.';
   if (lang === 'hi') {
-    return `You are a warm voice agent. ${base} Respond ONLY in Hindi. Write all Hindi text in Devanagari script (e.g. नमस्ते, कैसे हैं).`;
+    return `${base} Respond ONLY in Hindi. Write all Hindi in Devanagari script (e.g. नमस्ते, कैसे हैं).`;
   }
   if (lang === 'mr') {
-    return `You are a warm voice agent. ${base} Respond ONLY in Marathi. Write all Marathi text in Devanagari script (e.g. नमस्कार, कसे आहात).`;
+    return `${base} Respond ONLY in Marathi. Write all Marathi in Devanagari script (e.g. नमस्कार, कसे आहात).`;
   }
-  return `You are a warm voice agent. ${base} Respond ONLY in English.`;
+  return `${base} Respond ONLY in English.`;
 }
 
 const corsHeaders = {
