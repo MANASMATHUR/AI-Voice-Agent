@@ -1,11 +1,3 @@
-/**
- * Outbound Call API
- * Initiates AI voice calls to customers.
- * 
- * POST /api/outbound-call
- * Body: { phoneNumber: "+91xxxxxxxxxx", customerName: "John", language: "en" }
- */
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');

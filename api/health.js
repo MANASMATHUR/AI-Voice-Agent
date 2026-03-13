@@ -1,8 +1,3 @@
-/**
- * Health check: reports configuration status. No secrets exposed.
- * GET /api/health
- */
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',

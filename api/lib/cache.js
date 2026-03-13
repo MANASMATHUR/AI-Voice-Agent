@@ -1,8 +1,3 @@
-/**
- * Response cache with automatic fallback.
- * Uses Redis if available, otherwise in-memory cache.
- */
-
 import * as memoryStorage from './storage.js';
 
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;

@@ -1,10 +1,3 @@
-/**
- * Text-to-Speech with multiple provider support.
- * Priority: ElevenLabs → OpenAI TTS → Browser TTS
- * 
- * Without ElevenLabs, OpenAI TTS provides good quality voices.
- * "shimmer" voice is warm and friendly - perfect for Priya.
- */
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pFZP5JQG7iQjIQuC4Bku';

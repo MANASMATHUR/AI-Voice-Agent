@@ -1,14 +1,3 @@
-/**
- * Twilio Voice Webhook Handler
- * Handles incoming/outgoing AI voice calls.
- * 
- * Setup:
- * 1. Create Twilio account
- * 2. Get phone number
- * 3. Set webhook URL to: https://your-domain.vercel.app/api/call
- * 4. Set environment variables: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
- */
-
 import {
   getConversation,
   saveConversation,

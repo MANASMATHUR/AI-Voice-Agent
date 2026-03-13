@@ -1,11 +1,3 @@
-/**
- * Simple in-memory storage with persistence fallback.
- * Works without any external services.
- * 
- * For production: Use Redis/Vercel KV for distributed storage.
- * For demo/evaluation: This in-memory store works fine.
- */
-
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_MESSAGES = 50;
 

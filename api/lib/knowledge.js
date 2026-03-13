@@ -1,8 +1,3 @@
-/**
- * Riverwood Estate Knowledge Base
- * Accurate project information for the AI voice agent.
- */
-
 export const RIVERWOOD_KNOWLEDGE = {
   project: {
     name: "Riverwood Estate",

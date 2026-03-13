@@ -1,8 +1,3 @@
-/**
- * Streaming Chat API with conversation persistence.
- * Uses Server-Sent Events (SSE) for real-time token streaming.
- * Significantly reduces perceived latency.
- */
 
 import OpenAI from 'openai';
 import {

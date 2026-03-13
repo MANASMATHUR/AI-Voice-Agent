@@ -1,10 +1,4 @@
-/**
- * AI Voice Agent – Enhanced version with:
- * - Persistent conversation memory (server-side via Redis)
- * - Streaming responses for lower latency
- * - Session management across page reloads
- * - Improved voice handling
- */
+
 (function () {
   'use strict';
 

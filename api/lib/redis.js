@@ -1,11 +1,3 @@
-/**
- * Unified storage layer with automatic fallback.
- * Priority: Upstash Redis → In-memory storage
- * 
- * For production at scale, configure Redis.
- * For demo/evaluation, in-memory works fine.
- */
-
 import * as memoryStorage from './storage.js';
 
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
