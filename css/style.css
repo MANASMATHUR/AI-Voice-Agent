@@ -384,18 +384,20 @@ body::before {
 
 /* Loading skeleton for agent reply */
 .msg.assistant .content.loading {
-  color: var(--text-muted);
+  color: var(--text);
+  min-height: 1.25em;
 }
 
 .msg.assistant .content.loading::after {
   content: '';
   display: inline-block;
-  width: 4px;
-  height: 1em;
-  margin-left: 2px;
-  background: var(--text-muted);
-  animation: blink 0.8s ease-in-out infinite;
-  vertical-align: -0.2em;
+  width: 3px;
+  height: 1.1em;
+  margin-left: 1px;
+  background: var(--accent);
+  animation: cursor-blink 0.6s ease-in-out infinite;
+  vertical-align: text-bottom;
+  border-radius: 1px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -405,9 +407,41 @@ body::before {
   }
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 0.3; }
+@keyframes cursor-blink {
+  0%, 100% { opacity: 0.2; }
   50% { opacity: 1; }
+}
+
+/* Session persistence indicator */
+.session-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+}
+
+.session-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #22c55e;
+  border-radius: 50%;
+}
+
+/* Rate limit warning */
+.rate-limit-warning {
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  color: #eab308;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
 }
 
 /* Visually hidden label for screen readers */
