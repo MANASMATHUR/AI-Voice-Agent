@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "functions": {
+    "api/vapi/webhook.js": {
+      "maxDuration": 30
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

@@ -1,15 +1,5 @@
 import { getVoiceSystemPrompt, getFirstMessage, getToolDefinitions } from '../lib/voice-prompt.js';
 
-/**
- * VAPI Outbound Call Trigger
- *
- * POST /api/vapi/outbound-call
- * Body: { phoneNumber, customerName?, language? }
- *
- * Creates an outbound phone call through VAPI's API.
- * VAPI internally uses Twilio but handles the full AI voice pipeline
- * (STT -> LLM -> TTS) with real-time WebSocket communication.
- */
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -47,7 +37,6 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Validate Indian phone number format
   const cleanNumber = phoneNumber.replace(/[\s-]/g, '');
   if (!/^\+91\d{10}$/.test(cleanNumber)) {
     res.status(400).json({ error: 'Invalid phone number. Use +91XXXXXXXXXX format.' });
@@ -65,7 +54,6 @@ export default async function handler(req, res) {
     let callPayload;
 
     if (assistantId) {
-      // Use pre-configured assistant with overrides for personalization
       callPayload = {
         assistantId,
         assistantOverrides: {
@@ -93,7 +81,6 @@ export default async function handler(req, res) {
         phoneNumberId,
       };
     } else {
-      // Create call with inline assistant configuration (no pre-configured assistant)
       callPayload = {
         assistant: {
           model: {

@@ -11,7 +11,6 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/xml');
 
   if (req.method === 'GET') {
-    // Health check
     res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Twilio webhook is active.</Say></Response>');
     return;
   }
@@ -26,20 +25,16 @@ export default async function handler(req, res) {
   const speechResult = body.SpeechResult || '';
   const callStatus = body.CallStatus || 'in-progress';
 
-  // Handle call events
   if (callStatus === 'completed' || callStatus === 'failed' || callStatus === 'busy' || callStatus === 'no-answer') {
     res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     return;
   }
 
-  // Generate session ID from call SID
   const sessionId = `call_${callSid}`;
 
   try {
-    // Load conversation history
     let conversation = await getConversation(sessionId);
-    
-    // First interaction - greeting
+
     if (!speechResult && conversation.length === 0) {
       const greeting = getGreeting('en');
       conversation.push({ role: 'assistant', content: greeting, timestamp: Date.now() });
@@ -50,23 +45,19 @@ export default async function handler(req, res) {
       return;
     }
 
-    // User said something - process with LLM
     if (speechResult) {
       conversation.push({ role: 'user', content: speechResult, timestamp: Date.now() });
 
-      // Get AI response
       const aiResponse = await getAIResponse(conversation, 'en');
       conversation.push({ role: 'assistant', content: aiResponse, timestamp: Date.now() });
       await saveConversation(sessionId, conversation);
 
-      // Check for goodbye intent
       const isGoodbye = /bye|goodbye|thank you|that's all/i.test(speechResult);
-      
+
       res.status(200).send(generateTwiML(aiResponse, !isGoodbye));
       return;
     }
 
-    // No input received
     res.status(200).send(generateTwiML("I didn't catch that. Could you please repeat?", true));
   } catch (error) {
     console.error('Call handler error:', error);
@@ -87,11 +78,11 @@ function getGreeting(lang) {
 }
 
 function generateTwiML(message, continueListening = true) {
-  const gather = continueListening 
+  const gather = continueListening
     ? `<Gather input="speech" timeout="5" speechTimeout="auto" action="/api/call" method="POST">`
     : '';
   const gatherEnd = continueListening ? '</Gather>' : '';
-  
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   ${gather}
@@ -141,13 +132,6 @@ WHY INVEST:
 - Near IMT Kharkhauda (similar growth story to Gurgaon/Manesar)
 - Early entry advantage before major development
 - Housing demand will rise with industrial workers
-
-YOUR TASKS:
-1. Share construction updates enthusiastically
-2. Answer questions accurately using facts above
-3. Highlight the IMT Kharkhauda growth opportunity
-4. Offer to schedule site visits
-5. Be warm, professional, and concise
 
 IMPORTANT:
 - Keep responses SHORT (2-3 sentences max) - this is a phone call

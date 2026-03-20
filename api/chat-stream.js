@@ -28,12 +28,11 @@ function getGreetingContext() {
     "Entry gate design has been approved",
   ];
   const randomUpdate = updates[Math.floor(Math.random() * updates.length)];
-  
+
   return `CURRENT PROJECT STATUS: ${randomUpdate}. The IMT Kharkhauda industrial hub nearby is attracting major manufacturers, which will boost housing demand in the area.`;
 }
 
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -72,20 +71,17 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Rate limiting
   const rateLimit = await incrementRateLimit(sessionId);
   if (!rateLimit.allowed) {
     res.status(429).json({ error: 'Rate limit exceeded. Please wait a moment.' });
     return;
   }
 
-  // Check cache for common queries
   const cachedResponse = await getCachedResponse(userMessage, lang);
   if (cachedResponse) {
-    // Still save to conversation history
     await appendMessage(sessionId, { role: 'user', content: userMessage });
     await appendMessage(sessionId, { role: 'assistant', content: cachedResponse.reply });
-    
+
     res.status(200).json({
       reply: cachedResponse.reply,
       sessionId,
@@ -94,13 +90,10 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Load conversation history from storage
   let conversationHistory = await getConversation(sessionId);
 
-  // Add current user message
   conversationHistory.push({ role: 'user', content: userMessage });
 
-  // Build messages for OpenAI
   const systemPrompt = getSystemPrompt(lang);
   const greetingContext = getGreetingContext();
   const contextMessages = conversationHistory
@@ -119,7 +112,6 @@ export default async function handler(req, res) {
 
   try {
     if (stream) {
-      // Streaming response with SSE
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
@@ -134,7 +126,6 @@ export default async function handler(req, res) {
 
       let fullReply = '';
 
-      // Send session ID first
       res.write(`data: ${JSON.stringify({ type: 'session', sessionId })}\n\n`);
 
       for await (const chunk of completion) {
@@ -145,27 +136,22 @@ export default async function handler(req, res) {
         }
       }
 
-      // Save to persistent storage
       conversationHistory.push({ role: 'assistant', content: fullReply });
       await saveConversation(sessionId, conversationHistory);
       await saveSessionMetadata(sessionId, { language: lang });
 
-      // Cache if applicable
       await setCachedResponse(userMessage, lang, fullReply);
 
-      // Generate TTS audio (in parallel with final message)
       const tts = await generateSpeech(fullReply, { language: lang });
 
-      // Send completion signal with audio
-      res.write(`data: ${JSON.stringify({ 
-        type: 'done', 
+      res.write(`data: ${JSON.stringify({
+        type: 'done',
         fullReply,
         audioBase64: tts.audioBase64,
         ttsProvider: tts.provider,
       })}\n\n`);
       res.end();
     } else {
-      // Non-streaming response with TTS
       const completion = await openai.chat.completions.create({
         model: MODEL,
         messages,
@@ -180,15 +166,12 @@ export default async function handler(req, res) {
         return;
       }
 
-      // Save to persistent storage
       conversationHistory.push({ role: 'assistant', content: reply });
       await saveConversation(sessionId, conversationHistory);
       await saveSessionMetadata(sessionId, { language: lang });
 
-      // Cache if applicable
       await setCachedResponse(userMessage, lang, reply);
 
-      // Generate TTS audio
       const tts = await generateSpeech(reply, { language: lang });
 
       res.status(200).json({

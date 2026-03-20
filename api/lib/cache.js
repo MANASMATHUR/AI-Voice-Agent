@@ -4,7 +4,7 @@ const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const useRedis = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
-const CACHE_TTL = 60 * 60 * 2; // 2 hours
+const CACHE_TTL = 60 * 60 * 2;
 
 async function redisRequest(command, args = []) {
   if (!useRedis) return null;
@@ -65,17 +65,16 @@ function isCacheable(query) {
 
 export async function getCachedResponse(query, lang) {
   if (!isCacheable(query)) return null;
-  
-  // Use memory storage fallback if Redis not configured
+
   if (!useRedis) {
     return memoryStorage.getCachedResponse(query, lang);
   }
-  
+
   const key = hashQuery(query, lang);
   const data = await redisRequest('GET', [key]);
-  
+
   if (!data) return null;
-  
+
   try {
     const cached = JSON.parse(data);
     return cached;
@@ -86,18 +85,17 @@ export async function getCachedResponse(query, lang) {
 
 export async function setCachedResponse(query, lang, response) {
   if (!isCacheable(query)) return false;
-  
-  // Use memory storage fallback if Redis not configured
+
   if (!useRedis) {
     return memoryStorage.setCachedResponse(query, lang, response);
   }
-  
+
   const key = hashQuery(query, lang);
   const data = {
     reply: response,
     cachedAt: Date.now(),
   };
-  
+
   await redisRequest('SET', [key, JSON.stringify(data), 'EX', CACHE_TTL]);
   return true;
 }

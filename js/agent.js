@@ -1,14 +1,10 @@
-/**
- * AI Voice Agent – Riverwood Estate
- * Features: Streaming responses, persistent memory, multi-language support
- */
 (function () {
   'use strict';
 
   var API_BASE = window.location.origin || '';
   var SESSION_KEY = 'riverwood_session_id';
   var LANG_KEY = 'riverwood_lang';
-  
+
   var sessionId = localStorage.getItem(SESSION_KEY) || generateSessionId();
   var currentLang = localStorage.getItem(LANG_KEY) || 'en';
   var recognition = null;
@@ -75,7 +71,6 @@
   }
 
   function speakText(text, audioBase64) {
-    // Stop any current audio
     if (currentAudio) {
       currentAudio.pause();
       currentAudio = null;
@@ -84,7 +79,6 @@
       window.speechSynthesis.cancel();
     }
 
-    // If we have server-generated audio (ElevenLabs/OpenAI), use that
     if (audioBase64) {
       try {
         var audio = new Audio('data:audio/mpeg;base64,' + audioBase64);
@@ -100,39 +94,37 @@
       }
     }
 
-    // Fallback to browser TTS
     speakWithBrowserTTS(text);
   }
 
   function speakWithBrowserTTS(text) {
     if (!window.speechSynthesis || !text) return;
-    
+
     window.speechSynthesis.cancel();
     var utterance = new SpeechSynthesisUtterance(String(text).slice(0, 500));
     utterance.rate = 0.95;
     utterance.pitch = 1.05;
     utterance.lang = getSpeechLang();
-    
+
     var voices = window.speechSynthesis.getVoices();
     var voice = findBestVoice(voices, currentLang);
     if (voice) utterance.voice = voice;
-    
+
     window.speechSynthesis.speak(utterance);
   }
 
   function findBestVoice(voices, lang) {
     if (!voices || !voices.length) return null;
-    
+
     var preferences = {
       en: ['Google UK English Female', 'Microsoft Zira', 'Samantha', 'Karen', 'Google US English'],
       hi: ['Google हिन्दी', 'Microsoft Hemant', 'Lekha', 'hi-IN'],
       mr: ['Google मराठी', 'mr-IN'],
     };
-    
+
     var langPrefs = preferences[lang] || preferences.en;
     var langCode = lang === 'hi' ? 'hi' : lang === 'mr' ? 'mr' : 'en';
-    
-    // Try to find preferred voice
+
     for (var i = 0; i < langPrefs.length; i++) {
       var pref = langPrefs[i];
       for (var j = 0; j < voices.length; j++) {
@@ -141,20 +133,19 @@
         }
       }
     }
-    
-    // Fallback: any voice in the language
+
     for (var k = 0; k < voices.length; k++) {
       if (voices[k].lang.indexOf(langCode) === 0) {
         return voices[k];
       }
     }
-    
+
     return null;
   }
 
   function getGreetingPrompt() {
     var instruction = 'Greet the customer warmly. Share a brief construction progress update for Riverwood Estate (e.g., current phase, recent milestones). Ask if they would like to schedule a site visit. Keep it conversational (3-4 sentences).';
-    
+
     if (currentLang === 'hi') {
       return instruction + ' Respond ONLY in Hindi using Devanagari script.';
     }
@@ -166,7 +157,7 @@
 
   function startConversation() {
     setStatus('Connecting…');
-    
+
     fetch(API_BASE + '/api/chat-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -205,23 +196,23 @@
 
   function sendMessageStreaming(text) {
     if (isProcessing) return;
-    
+
     var message = (text !== undefined && text !== null ? String(text) : el.userInput.value || '').trim();
     if (!message) return;
 
     el.userInput.value = '';
     appendMessage('user', message);
-    
+
     setStatus('Thinking…');
     setProcessing(true);
-    
+
     var loadingRow = appendMessage('assistant', '', { loading: true });
     var fullReply = '';
     var audioBase64 = null;
     var ttsProvider = null;
 
     abortController = new AbortController();
-    
+
     fetch(API_BASE + '/api/chat-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -239,23 +230,23 @@
           throw new Error(data.error || 'Request failed');
         });
       }
-      
+
       var reader = response.body.getReader();
       var decoder = new TextDecoder();
-      
+
       function readChunk() {
         return reader.read().then(function(result) {
           if (result.done) return;
-          
+
           var chunk = decoder.decode(result.value);
           var lines = chunk.split('\n');
-          
+
           for (var i = 0; i < lines.length; i++) {
             var line = lines[i];
             if (line.indexOf('data: ') === 0) {
               try {
                 var data = JSON.parse(line.slice(6));
-                
+
                 if (data.type === 'session' && data.sessionId) {
                   sessionId = data.sessionId;
                   localStorage.setItem(SESSION_KEY, sessionId);
@@ -267,16 +258,14 @@
                   audioBase64 = data.audioBase64 || null;
                   ttsProvider = data.ttsProvider || null;
                 }
-              } catch (e) {
-                // Ignore parse errors
-              }
+              } catch (e) {}
             }
           }
-          
+
           return readChunk();
         });
       }
-      
+
       return readChunk();
     })
     .then(function() {
@@ -341,9 +330,8 @@
     };
   }
 
-  // Event listeners
   el.sendBtn.addEventListener('click', function() { sendMessageStreaming(); });
-  
+
   el.userInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -380,9 +368,7 @@
     });
   }
 
-  // Language switching
   if (el.langBtns && el.langBtns.length) {
-    // Set initial active state
     el.langBtns.forEach(function(btn) {
       var lang = btn.getAttribute('data-lang');
       var isActive = lang === currentLang;
@@ -405,11 +391,10 @@
         });
 
         if (recognition) recognition.lang = getSpeechLang();
-        
+
         var langNames = { en: 'English', hi: 'हिंदी', mr: 'मराठी' };
         setStatus('Language: ' + langNames[currentLang]);
 
-        // Start new session for new language
         sessionId = generateSessionId();
         localStorage.setItem(SESSION_KEY, sessionId);
         el.conversation.innerHTML = '';
@@ -418,14 +403,13 @@
     });
   }
 
-  // Initialize
   if (window.speechSynthesis) {
     window.speechSynthesis.getVoices();
     window.speechSynthesis.onvoiceschanged = function() {
       window.speechSynthesis.getVoices();
     };
   }
-  
+
   initSpeechRecognition();
   startConversation();
 })();

@@ -1,17 +1,6 @@
-/**
- * VAPI Voice Agent Client - Riverwood Estate
- *
- * Real-time voice conversation using VAPI Web SDK.
- * Handles: call start/end, real-time transcript, volume indicators,
- * language switching, and graceful fallbacks.
- */
 (function () {
   'use strict';
 
-  // ── Configuration ──────────────────────────────────────────────
-  // VAPI public key is injected at build/deploy time or read from a config endpoint.
-  // For local dev, set window.VAPI_PUBLIC_KEY before this script loads,
-  // or the script will attempt to fetch it from /api/health.
   var VAPI_PUBLIC_KEY = window.VAPI_PUBLIC_KEY || '';
   var VAPI_ASSISTANT_ID = window.VAPI_ASSISTANT_ID || '';
   var LANG_KEY = 'riverwood_lang';
@@ -23,7 +12,6 @@
   var timerInterval = null;
   var callStartTime = null;
 
-  // ── DOM Elements ───────────────────────────────────────────────
   var el = {
     callBtn: document.getElementById('call-btn'),
     muteBtn: document.getElementById('mute-btn'),
@@ -40,20 +28,16 @@
 
   if (!el.callBtn) return;
 
-  // ── Initialization ─────────────────────────────────────────────
   init();
 
   async function init() {
-    // Try to get VAPI public key from health endpoint if not set
     if (!VAPI_PUBLIC_KEY) {
       try {
         var resp = await fetch('/api/health');
         var health = await resp.json();
         VAPI_PUBLIC_KEY = health.vapiPublicKey || '';
         VAPI_ASSISTANT_ID = health.vapiAssistantId || '';
-      } catch (e) {
-        // Health endpoint may not have VAPI keys
-      }
+      } catch (e) {}
     }
 
     if (!VAPI_PUBLIC_KEY) {
@@ -71,7 +55,6 @@
     setStatus('VAPI not configured. Please set VAPI_PUBLIC_KEY.', true);
   }
 
-  // ── VAPI Setup ─────────────────────────────────────────────────
   function initVapi() {
     if (typeof Vapi === 'undefined') {
       setStatus('VAPI SDK failed to load. Check your connection.', true);
@@ -81,7 +64,6 @@
 
     vapi = new Vapi(VAPI_PUBLIC_KEY);
 
-    // ── Event Handlers ─────────────────────────────────────────
     vapi.on('call-start', function () {
       callActive = true;
       callStartTime = Date.now();
@@ -105,7 +87,6 @@
     });
 
     vapi.on('speech-start', function () {
-      // Agent is speaking
       el.callAvatar.classList.add('speaking');
       el.callAvatar.classList.remove('listening');
       setCallStatus('Priya is speaking...', true);
@@ -131,7 +112,6 @@
       setStatus('Error: ' + (error.message || 'Connection failed'), true);
     });
 
-    // ── Call Button ────────────────────────────────────────────
     el.callBtn.addEventListener('click', function () {
       if (callActive) {
         stopCall();
@@ -140,7 +120,6 @@
       }
     });
 
-    // ── Mute Button ────────────────────────────────────────────
     el.muteBtn.addEventListener('click', function () {
       isMuted = !isMuted;
       vapi.setMuted(isMuted);
@@ -151,7 +130,6 @@
     setCallStatus('Ready to call');
   }
 
-  // ── Call Management ────────────────────────────────────────────
   function startCall() {
     if (!vapi || callActive) return;
 
@@ -162,13 +140,11 @@
     var callConfig;
 
     if (VAPI_ASSISTANT_ID) {
-      // Use pre-configured assistant with language overrides
       callConfig = {
         assistantId: VAPI_ASSISTANT_ID,
         assistantOverrides: buildAssistantOverrides(),
       };
     } else {
-      // Inline assistant configuration
       callConfig = {
         assistant: buildInlineAssistant(),
       };
@@ -176,7 +152,6 @@
 
     try {
       vapi.start(callConfig);
-      // Re-enable after a short delay (VAPI will fire call-start or error)
       setTimeout(function () {
         el.callBtn.disabled = false;
       }, 2000);
@@ -207,14 +182,12 @@
     el.volumeIndicator.style.display = 'none';
     el.callAvatar.classList.remove('speaking', 'listening');
 
-    // Reset volume bars
     el.volumeBars.forEach(function (bar) {
       bar.style.height = '4px';
       bar.classList.remove('active');
     });
   }
 
-  // ── Assistant Configuration ────────────────────────────────────
   function buildAssistantOverrides() {
     return {
       firstMessage: getFirstMessage(),
@@ -416,7 +389,6 @@
     ];
   }
 
-  // ── Message Handling ───────────────────────────────────────────
   function handleVapiMessage(message) {
     if (!message) return;
 
@@ -424,15 +396,11 @@
       case 'transcript':
         handleTranscript(message);
         break;
-
       case 'function-call':
-        // Function calls are handled server-side via webhook
         break;
-
       case 'speech-update':
         handleSpeechUpdate(message);
         break;
-
       case 'status-update':
         if (message.status === 'ended') {
           endCallUI();
@@ -442,30 +410,25 @@
   }
 
   function handleTranscript(message) {
-    var role = message.role; // 'user' or 'assistant'
+    var role = message.role;
     var text = message.transcript || '';
     var isFinal = message.transcriptType === 'final';
 
     if (!text) return;
 
-    // Find or create transcript line for this utterance
-    var lineId = role + '-' + (isFinal ? 'final-' + Date.now() : 'partial');
     var existingPartial = el.transcript.querySelector('.transcript-line.' + role + '.partial-line');
 
     if (!isFinal && existingPartial) {
-      // Update partial transcript
       var textEl = existingPartial.querySelector('.text');
       if (textEl) {
         textEl.textContent = text;
       }
     } else if (isFinal) {
-      // Remove partial and add final
       if (existingPartial) {
         existingPartial.remove();
       }
       addTranscriptLine(role, text, false);
     } else {
-      // New partial
       if (existingPartial) existingPartial.remove();
       addTranscriptLine(role, text, true);
     }
@@ -499,9 +462,7 @@
     }
   }
 
-  // ── Volume Indicator ───────────────────────────────────────────
   function updateVolumeIndicator(level) {
-    // level is 0-1
     var barCount = el.volumeBars.length;
     var activeCount = Math.round(level * barCount);
 
@@ -513,7 +474,6 @@
     });
   }
 
-  // ── Timer ──────────────────────────────────────────────────────
   function startTimer() {
     callStartTime = Date.now();
     el.callTimer.textContent = '0:00';
@@ -533,11 +493,9 @@
     }
   }
 
-  // ── Language Toggle ────────────────────────────────────────────
   function initLanguageToggle() {
     if (!el.langBtns || !el.langBtns.length) return;
 
-    // Set initial state
     el.langBtns.forEach(function (btn) {
       var lang = btn.getAttribute('data-lang');
       var isActive = lang === currentLang;
@@ -550,7 +508,6 @@
         var lang = btn.getAttribute('data-lang');
         if (!lang || lang === currentLang) return;
 
-        // Don't switch language during an active call
         if (callActive) {
           setStatus('End the current call before switching language.');
           return;
@@ -572,7 +529,6 @@
     });
   }
 
-  // ── UI Helpers ─────────────────────────────────────────────────
   function setCallStatus(text, isActive) {
     if (!el.callStatus) return;
     el.callStatus.textContent = text || '';

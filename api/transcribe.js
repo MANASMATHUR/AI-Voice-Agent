@@ -2,7 +2,6 @@ import OpenAI, { toFile } from 'openai';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
 
-// Turn off default body parser for Vercel so we can read the multipart form
 export const config = {
   api: {
     bodyParser: false,
@@ -39,7 +38,6 @@ export default async function handler(req, res) {
 
   const openai = new OpenAI({ apiKey });
 
-  // Parse multipart form
   const form = new IncomingForm({ keepExtensions: true, allowEmptyFiles: false });
 
   form.parse(req, async (err, fields, files) => {
@@ -49,7 +47,6 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Formidable v3 puts files in arrays
     const fileData = Array.isArray(files.audio) ? files.audio[0] : files.audio;
     if (!fileData || !fileData.filepath) {
       jsonResponse(res, 400, { error: 'No audio file provided' });
@@ -59,22 +56,17 @@ export default async function handler(req, res) {
     try {
       const audioStream = fs.createReadStream(fileData.filepath);
 
-      // We transcribe the audio file
       const transcription = await openai.audio.transcriptions.create({
         file: audioStream,
         model: 'whisper-1',
-        language: 'en', // Keep 'en' or omit. Whisper handles Hindi/mixed implicitly well without 'hi' specifically
+        language: 'en',
       });
 
-      // Cleanup temp file
-      fs.unlink(fileData.filepath, (unlinkErr) => {
-        if (unlinkErr) console.error("Could not delete temp form file", unlinkErr);
-      });
+      fs.unlink(fileData.filepath, () => {});
 
       jsonResponse(res, 200, { text: transcription.text });
     } catch (openaiErr) {
       console.error(openaiErr);
-      // Cleanup temp file on error too
       fs.unlink(fileData.filepath, () => {});
       jsonResponse(res, 500, { error: 'Transcription failed' });
     }

@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
-    res.status(503).json({ 
+    res.status(503).json({
       error: 'Twilio not configured',
       message: 'Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER environment variables'
     });
@@ -33,10 +33,9 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Validate Indian phone number format
   const cleanNumber = phoneNumber.replace(/\s+/g, '');
   if (!/^\+91\d{10}$/.test(cleanNumber)) {
-    res.status(400).json({ 
+    res.status(400).json({
       error: 'Invalid phone number format',
       expected: '+91XXXXXXXXXX'
     });
@@ -44,13 +43,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get the base URL for webhooks
     const baseUrl = getBaseUrl(req);
-    
-    // Initialize Twilio client
     const twilio = await getTwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
-    
-    // Create the call
+
     const call = await twilio.calls.create({
       to: cleanNumber,
       from: TWILIO_PHONE_NUMBER,
@@ -71,9 +66,9 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Outbound call error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to initiate call',
-      message: error.message 
+      message: error.message
     });
   }
 }
@@ -85,7 +80,6 @@ function getBaseUrl(req) {
 }
 
 async function getTwilioClient(accountSid, authToken) {
-  // Dynamic import of Twilio SDK
   const twilio = await import('twilio');
   return twilio.default(accountSid, authToken);
 }

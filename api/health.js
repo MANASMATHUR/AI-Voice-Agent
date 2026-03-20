@@ -26,8 +26,8 @@ export default function handler(req, res) {
   const twilioConfigured = Boolean(
     process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
   );
+  const vapiConfigured = Boolean(process.env.VAPI_API_KEY);
 
-  // Determine TTS provider
   let ttsProvider = 'browser';
   if (elevenlabsConfigured) ttsProvider = 'elevenlabs';
   else if (openaiConfigured) ttsProvider = 'openai';
@@ -38,7 +38,9 @@ export default function handler(req, res) {
     openai_configured: openaiConfigured,
     storage: redisConfigured ? 'redis' : 'memory',
     tts_provider: ttsProvider,
-    phone_calls: twilioConfigured ? 'enabled' : 'disabled',
+    phone_calls: vapiConfigured ? 'vapi' : twilioConfigured ? 'twilio' : 'disabled',
+    vapiPublicKey: process.env.VAPI_PUBLIC_KEY || '',
+    vapiAssistantId: process.env.VAPI_ASSISTANT_ID || '',
     features: {
       conversation_memory: true,
       streaming: true,
@@ -46,6 +48,7 @@ export default function handler(req, res) {
       response_caching: true,
       persistent_storage: redisConfigured,
       voice_quality: ttsProvider === 'elevenlabs' ? 'premium' : ttsProvider === 'openai' ? 'good' : 'basic',
+      vapi_voice: vapiConfigured,
     },
   }));
 }

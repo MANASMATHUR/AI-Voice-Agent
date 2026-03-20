@@ -12,7 +12,7 @@ const MODEL = 'gpt-4o-mini';
 
 function getSystemPrompt(lang) {
   const base = `You are a warm, professional voice agent for Riverwood Estate - a premium residential township. Provide construction updates, answer questions, and help schedule site visits. Be conversational and concise (2-4 sentences).`;
-  
+
   if (lang === 'hi') {
     return `${base}\n\nRespond ONLY in Hindi using Devanagari script (e.g., नमस्ते, कैसे हैं आप?).`;
   }
@@ -65,7 +65,6 @@ export default async function handler(req, res) {
   const lang = ['en', 'hi', 'mr'].includes(body.language) ? body.language : 'en';
   const useTTS = body.tts !== false;
 
-  // Rate limiting if session provided
   if (sessionId) {
     const rateLimit = await incrementRateLimit(sessionId);
     if (!rateLimit.allowed) {
@@ -74,7 +73,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // Get messages from request or load from storage
   let raw = body.messages;
   if (!Array.isArray(raw) || raw.length === 0) {
     if (sessionId) {
@@ -89,7 +87,6 @@ export default async function handler(req, res) {
   const systemPrompt = getSystemPrompt(lang);
   const lastUserMessage = raw[raw.length - 1]?.content || '';
 
-  // Check cache for common queries
   const cachedResponse = await getCachedResponse(lastUserMessage, lang);
   if (cachedResponse) {
     jsonResponse(res, 200, { reply: cachedResponse.reply, cached: true });
@@ -119,14 +116,13 @@ export default async function handler(req, res) {
       max_tokens: MAX_COMPLETION_TOKENS,
       temperature: 0.7,
     });
-    
+
     const reply = completion.choices?.[0]?.message?.content?.trim() ?? '';
     if (!reply) {
       jsonResponse(res, 502, { error: 'Empty model response' });
       return;
     }
 
-    // Save to persistent storage
     if (sessionId) {
       const updatedConversation = [
         ...raw,
@@ -135,10 +131,8 @@ export default async function handler(req, res) {
       await saveConversation(sessionId, updatedConversation);
     }
 
-    // Cache the response
     await setCachedResponse(lastUserMessage, lang, reply);
 
-    // Generate TTS only if requested (default: true for backward compatibility)
     if (useTTS) {
       const mp3Response = await openai.audio.speech.create({
         model: "tts-1",
@@ -146,7 +140,7 @@ export default async function handler(req, res) {
         input: reply,
         response_format: "mp3"
       });
-      
+
       const buffer = Buffer.from(await mp3Response.arrayBuffer());
       const audioBase64 = buffer.toString('base64');
       jsonResponse(res, 200, { reply, audioBase64 });

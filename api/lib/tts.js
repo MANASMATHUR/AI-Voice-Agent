@@ -1,11 +1,6 @@
-
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pFZP5JQG7iQjIQuC4Bku';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-// OpenAI TTS voices: alloy, echo, fable, onyx, nova, shimmer
-// "shimmer" - warm, friendly female voice (best for Priya)
-// "nova" - also warm female, slightly more energetic
 const OPENAI_VOICE = process.env.OPENAI_TTS_VOICE || 'shimmer';
 
 export function getTTSProvider() {
@@ -17,25 +12,22 @@ export function getTTSProvider() {
 export async function generateSpeech(text, options = {}) {
   const provider = options.provider || getTTSProvider();
   const lang = options.language || 'en';
-  
+
   if (provider === 'elevenlabs' && ELEVENLABS_API_KEY) {
     return generateElevenLabsSpeech(text, lang);
   }
-  
+
   if (provider === 'openai' && OPENAI_API_KEY) {
     return generateOpenAISpeech(text, lang);
   }
-  
+
   return { provider: 'browser', audioBase64: null };
 }
 
 async function generateElevenLabsSpeech(text, lang) {
-  // Select voice based on language
-  // Hindi/Marathi: Use multilingual model
-  // English: Use standard model
   const voiceId = getVoiceForLanguage(lang);
   const modelId = lang === 'en' ? 'eleven_turbo_v2_5' : 'eleven_multilingual_v2';
-  
+
   try {
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -85,14 +77,12 @@ async function generateOpenAISpeech(text, lang = 'en') {
     const { default: OpenAI } = await import('openai');
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-    // Use shimmer for warm female voice (Priya)
-    // OpenAI TTS supports Hindi/Marathi text automatically
     const mp3Response = await openai.audio.speech.create({
       model: 'tts-1',
-      voice: OPENAI_VOICE, // shimmer - warm, friendly female
+      voice: OPENAI_VOICE,
       input: text.slice(0, 4096),
       response_format: 'mp3',
-      speed: 1.0, // natural speed
+      speed: 1.0,
     });
 
     const buffer = Buffer.from(await mp3Response.arrayBuffer());
@@ -108,11 +98,10 @@ async function generateOpenAISpeech(text, lang = 'en') {
 }
 
 function getVoiceForLanguage(lang) {
-  // ElevenLabs voice IDs
   const voices = {
-    en: process.env.ELEVENLABS_VOICE_ID || 'pFZP5JQG7iQjIQuC4Bku', // Lily
-    hi: process.env.ELEVENLABS_VOICE_ID_HI || 'Xb7hH8MSUJpSbSDYk0k2', // Alice (multilingual)
-    mr: process.env.ELEVENLABS_VOICE_ID_MR || 'Xb7hH8MSUJpSbSDYk0k2', // Alice (multilingual)
+    en: process.env.ELEVENLABS_VOICE_ID || 'pFZP5JQG7iQjIQuC4Bku',
+    hi: process.env.ELEVENLABS_VOICE_ID_HI || 'Xb7hH8MSUJpSbSDYk0k2',
+    mr: process.env.ELEVENLABS_VOICE_ID_MR || 'Xb7hH8MSUJpSbSDYk0k2',
   };
   return voices[lang] || voices.en;
 }

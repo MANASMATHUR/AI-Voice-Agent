@@ -1,9 +1,5 @@
 import { getSystemPromptKnowledge } from './knowledge.js';
 
-/**
- * Voice-optimized system prompt shared between VAPI assistant and chat-stream.
- * Focuses on natural speech patterns, filler words, pauses, and conversational flow.
- */
 export function getVoiceSystemPrompt(lang = 'en', customerName = null) {
   const projectKnowledge = getSystemPromptKnowledge();
   const nameGreeting = customerName ? `The customer's name is ${customerName}. Use their name naturally in conversation.` : '';
@@ -85,7 +81,7 @@ LANGUAGE: Respond ONLY in Hindi using Devanagari script.
 Example: "नमस्ते! मैं प्रिया, रिवरवुड एस्टेट से बोल रही हूं।"
 Use "आप" (formal you). Translate project terms naturally.
 DDJAY = दीन दयाल जन आवास योजना
-Use Hindi filler words: "अच्छा...", "हाँ...", "देखिए...", "बिल्कुल!"`;
+MANDATORY Hindi fillers in every response: "अच्छा...", "हाँ...", "देखिए...", "बिल्कुल!", "सुनिए...", "वो क्या है ना..."`;
   }
 
   if (lang === 'mr') {
@@ -94,7 +90,7 @@ Use Hindi filler words: "अच्छा...", "हाँ...", "देखिए..
 LANGUAGE: Respond ONLY in Marathi using Devanagari script.
 Example: "नमस्कार! मी प्रिया, रिवरवुड एस्टेट कडून बोलत आहे।"
 Use formal address. Translate project terms naturally.
-Use Marathi filler words: "बरं...", "हो...", "बघा ना...", "नक्कीच!"`;
+MANDATORY Marathi fillers in every response: "बरं...", "हो...", "बघा ना...", "नक्कीच!", "अहो..."`;
   }
 
   return `${base}
@@ -103,9 +99,6 @@ LANGUAGE: Respond in clear, warm, conversational English.
 Example: "Hello! This is Priya calling from Riverwood Estate. How are you doing today?"`;
 }
 
-/**
- * First message variants for VAPI assistant
- */
 export function getFirstMessage(lang = 'en', customerName = null) {
   const name = customerName ? ` ${customerName}` : '';
 
@@ -120,9 +113,6 @@ export function getFirstMessage(lang = 'en', customerName = null) {
   return `Hello${name}! This is Priya calling from Riverwood Estate. How are you doing today? I've got some really exciting updates to share with you!`;
 }
 
-/**
- * VAPI assistant tool definitions for function calling
- */
 export function getToolDefinitions() {
   return [
     {
