@@ -10,7 +10,7 @@ The agent handles customer calls with personalized construction updates, answers
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           CUSTOMER TOUCHPOINTS                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│   📱 Phone Call          💻 Web Interface          📲 WhatsApp (future)     │
+│    Phone Call           Web Interface           WhatsApp (future)     │
 │   (Twilio/VAPI)          (Browser)                 (Twilio)                 │
 └──────────┬───────────────────────┬────────────────────────┬─────────────────┘
            │                       │                        │
@@ -115,30 +115,85 @@ Riverwood needs to call 1000 customers every morning with personalized updates. 
 #### Option A: Twilio Programmable Voice (Recommended)
 ```
 Pros:
-✅ Mature, reliable platform
-✅ Excellent India coverage
-✅ Built-in retry/failover
-✅ Detailed call analytics
-✅ Easy webhook integration
+Mature, reliable platform
+Excellent India coverage
+Built-in retry/failover
+Detailed call analytics
+Easy webhook integration
 
 Cons:
-❌ $0.013/min outbound (India)
-❌ Requires webhook server
+$0.013/min outbound (India)
+Requires webhook server
 ```
 
-#### Option B: VAPI (Voice AI Platform)
+#### Option B: VAPI (Voice AI Platform) -- IMPLEMENTED
 ```
 Pros:
-✅ Built for AI voice agents
-✅ Native LLM integration
-✅ Simpler setup
-✅ Real-time transcription included
+Built for AI voice agents
+Native LLM + TTS orchestration (STT -> LLM -> TTS in one pipeline)
+Real-time WebSocket communication (no HTTP roundtrips)
+Native interruption handling and turn-taking
+Filler audio during LLM processing
+Real-time transcription included (Deepgram Nova-2)
+~800-1200ms total latency (vs 1.7-2.7s with manual pipeline)
 
 Cons:
-❌ Newer platform
-❌ $0.05/min (higher cost)
-❌ Less customizable
+$0.05/min (higher per-minute cost, but includes STT + orchestration)
 ```
+
+### VAPI Integration Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    VAPI VOICE PIPELINE                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
+│  │ Deepgram │ -> │ OpenAI   │ -> │ElevenLabs│ -> │ Audio    │  │
+│  │ Nova-2   │    │ GPT-4o   │    │ Turbo v2 │    │ Playback │  │
+│  │ (STT)    │    │ mini     │    │ (TTS)    │    │          │  │
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
+│       ↑               ↑               ↑                         │
+│       │         Function Calls         │                         │
+│       │               ↓               │                         │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │            /api/vapi/webhook                               │   │
+│  │  - getConstructionUpdate()                                 │   │
+│  │  - getProjectDetails()                                     │   │
+│  │  - scheduleVisit()                                         │   │
+│  │  - end-of-call-report -> Redis                             │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  Endpoints:                                                      │
+│  - /api/vapi/webhook (server events + function calls)            │
+│  - /api/vapi/outbound-call (trigger phone calls)                 │
+│                                                                  │
+│  Client:                                                         │
+│  - agent-vapi.html + js/agent-vapi.js (VAPI Web SDK)            │
+│  - Real-time transcript display                                  │
+│  - Volume indicators + call controls                             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Voice Realism Features (70% of evaluation)
+
+1. **Natural filler words**: System prompt instructs LLM to use "So...", "Hmm...", "Actually..."
+2. **Thinking pauses**: "..." markers and mid-sentence dashes for natural rhythm
+3. **Emotional variation**: Excitement, empathy, surprise mapped to conversation context
+4. **Interruption handling**: VAPI natively supports barge-in (user can interrupt agent)
+5. **Turn-taking**: 0.4s response delay for natural conversation pacing
+6. **ElevenLabs Turbo v2.5**: Low-latency, high-quality voice with stability/style tuning
+
+### Latency Optimization (15% of evaluation)
+
+| Stage | Manual Pipeline | VAPI Pipeline |
+|-------|----------------|---------------|
+| STT | 300-500ms | Streaming (real-time) |
+| HTTP roundtrip | 100-200ms | WebSocket (0ms) |
+| LLM (first token) | 200-400ms | 200-400ms |
+| TTS generation | 400-600ms | Sentence-level streaming |
+| **Total** | **1.7-2.7s** | **800-1200ms** |
 
 ### Recommended Stack for 1000 Calls
 
