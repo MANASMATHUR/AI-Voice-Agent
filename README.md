@@ -1,266 +1,114 @@
 # AI Voice Agent – Riverwood Estate
 
-A production-ready AI voice agent for Riverwood Estate that handles customer calls with personalized construction updates, conversation memory, and natural voice interaction.
+Production-oriented AI voice agent for **Riverwood Estate** (Riverwood Projects LLP): text chat with streaming + ElevenLabs TTS, and **live voice calls** via **VAPI** (Web SDK) with ElevenLabs + OpenAI configured in the VAPI dashboard.
 
-**Built for:** Riverwood Projects LLP – AI Voice Agent Internship Challenge
-
-> **Agent Name:** Priya – A warm, friendly voice agent who calls customers with project updates
+**Agent:** Priya — warm, conversational, optimized for **spoken** output (pauses, fillers, natural rhythm).
 
 ---
 
-## Key Features
+## Evaluation focus (current rubric)
 
-### 🎙️ Natural Voice (25% weight)
-- **ElevenLabs integration:** Human-like voice synthesis (when configured)
-- **Multi-language:** English, Hindi (हिंदी), Marathi (मराठी)
-- **Fallback chain:** ElevenLabs → OpenAI TTS → Browser TTS
-- **Personality:** "Priya" – warm, professional, enthusiastic about Riverwood
+| Criterion | Weight | Implementation |
+|-----------|--------|----------------|
+| **Voice realism** | **70%** | `api/_lib/voice-prompt.js` + VAPI inline assistant (`js/agent-vapi.js`): thinking time, fillers, `...` pauses, anti-list rules. ElevenLabs voice settings tuned for warmth. |
+| **Latency** | **15%** | SSE on `/api/chat-stream`, `gpt-4o-mini`, Eleven turbo / multilingual TTS; VAPI streaming + balanced `optimizeStreamingLatency`. |
+| **Cost efficiency** | **15%** | Mini model, response cache, per-session rate limits; optional Redis for scale. |
 
-### 🚀 Low Latency (20% weight)
-- **Streaming responses (SSE):** Tokens appear in real-time
-- **First token:** ~300-400ms with GPT-4o-mini
-- **Total response:** <2 seconds end-to-end
-- **Parallel processing:** TTS generates while text streams
-
-### 🧠 Conversation Memory (30% weight)
-- **Persistent sessions:** Redis-backed, survives page refresh
-- **50 message history:** Full context for natural conversations
-- **7-day retention:** Cross-session memory
-- **Personalization:** Remembers language, interests, previous calls
-
-### 📈 Scalability (30% weight)
-- **Serverless:** Vercel Edge auto-scales to demand
-- **Distributed state:** Upstash Redis for multi-instance consistency
-- **Rate limiting:** 30 req/min per session
-- **Phone calls:** Twilio integration for 1000+ daily calls
-- **Queue-based:** Architecture supports parallel call processing
-
-### 💰 Cost Effectiveness (20% weight)
-- **Response caching:** Common queries cached (2hr TTL)
-- **Efficient model:** GPT-4o-mini ($0.15/1M tokens)
-- **Smart context:** Only last 20 messages sent
-- **Estimated cost:** ~$750-900/month for 1000 calls/day
+`GET /api/health` returns `evaluation_criteria`, `text_chat_ready`, `voice_call_ready`, and `production_stack`.
 
 ---
 
-## Architecture
+## Stack (production)
 
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│                 │     │                  │     │                 │
-│   Browser       │────▶│   Vercel Edge    │────▶│   OpenAI API    │
-│   (Frontend)    │◀────│   (Serverless)   │◀────│   (GPT-4o-mini) │
-│                 │     │                  │     │                 │
-└─────────────────┘     └────────┬─────────┘     └─────────────────┘
-                                 │
-                                 ▼
-                        ┌──────────────────┐
-                        │   Upstash Redis  │
-                        │   (Memory/Cache) │
-                        └──────────────────┘
-```
+| Need | Env / config |
+|------|----------------|
+| Text chat (LLM) | `OPENAI_API_KEY` (`sk-` or `sk-proj-`) |
+| Text chat (TTS) | `ELEVENLABS_API_KEY` + optional `ELEVENLABS_VOICE_ID*` — **required** unless `ELEVENLABS_OPTIONAL=true` (local dev only) |
+| Voice call page | `VAPI_PUBLIC_KEY`, `VAPI_ASSISTANT_ID` — assistant in VAPI must use **ElevenLabs** voice + **OpenAI** model |
+| Memory / scale (recommended) | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
+
+See `.env.example` for the full template.
 
 ---
 
-## Quick Start
-
-### 1. Clone and Install
+## Quick start
 
 ```bash
 git clone <repo-url>
 cd <project-folder>
 npm install
-```
-
-### 2. Configure Environment
-
-```bash
 cp .env.example .env
+# Edit .env with your keys
+npm run dev
 ```
 
-Edit `.env`:
+Open **http://localhost:3000** (or your `PORT`).
 
-```env
-# Required
-OPENAI_API_KEY=sk-your-openai-api-key
+- **Landing:** `index.html`
+- **Text chat:** `agent.html`
+- **Voice call:** `agent-vapi.html` (requires VAPI keys + browser mic)
 
-# Recommended (for conversation memory)
-UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
-UPSTASH_REDIS_REST_TOKEN=your-token
-```
+> Use an HTTP server URL — **not** `file://` — so `/api/health` and `/api/chat-stream` work.
 
-### 3. Get Upstash Redis (Free)
-
-1. Go to [console.upstash.com](https://console.upstash.com/)
-2. Create a new Redis database (free tier: 10K requests/day)
-3. Copy the REST URL and Token to your `.env`
-
-### 4. Deploy to Vercel
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-
-# Add environment variables in Vercel dashboard
-```
-
-Or import directly from GitHub at [vercel.com/new](https://vercel.com/new).
-
-### 5. Run Locally
-
-```bash
-npx vercel dev
-```
+**Vercel:** `npx vercel` and set the same env vars in the project dashboard. For local Vercel parity: `npx vercel dev`.
 
 ---
 
-## API Endpoints
+## VAPI Web SDK (voice page)
+
+`agent-vapi.html` loads `@vapi-ai/web` from jsDelivr ESM. The bundle’s default export is a **module namespace**; the client class is on `.default` — this is handled in the inline script so `new Vapi(key)` works.
+
+**If the browser shows `POST …/call/web` → 400:** VAPI rejected the payload. Common causes: `assistantOverrides` didn’t match the saved assistant, or the dashboard uses a **different** model id than `gpt-4o-mini`. This repo’s `js/agent-vapi.js` uses **`temperature: 0.5`** and **`maxTokens: 250`** to match a typical **GPT 4o Mini** assistant in the dashboard; change `VAPI_MODEL_SETTINGS` there if your assistant differs.
+
+**Deepgram Flux:** If the transcriber uses **Flux General English**, VAPI’s UI recommends disabling the conflicting **Smart Endpointing** plan under **Advanced → Start Speaking Plan** so Flux end-of-turn detection works.
+
+Set `VAPI_ASSISTANT_ID` to your assistant UUID (e.g. from the Assistants list). The app auto-retries once with **`firstMessage` only** if the first start looks like a 400.
+
+---
+
+## API endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/health` | GET | Configuration status check |
-| `/api/chat` | POST | Standard chat (with optional TTS) |
-| `/api/chat-stream` | POST | **Streaming chat with SSE** |
-| `/api/transcribe` | POST | Audio transcription (Whisper) |
-
-### Streaming Chat Request
-
-```javascript
-POST /api/chat-stream
-Content-Type: application/json
-
-{
-  "sessionId": "ses_abc123",      // Optional: auto-generated if not provided
-  "message": "What's the construction progress?",
-  "language": "en",               // en | hi | mr
-  "stream": true                  // Enable SSE streaming
-}
-```
-
-### SSE Response Format
-
-```
-data: {"type":"session","sessionId":"ses_abc123"}
-data: {"type":"token","content":"The"}
-data: {"type":"token","content":" construction"}
-data: {"type":"token","content":" is"}
-...
-data: {"type":"done","fullReply":"The construction is progressing well..."}
-```
+| `/api/health` | GET | Config flags, rubric JSON, `vapiPublicKey` / `vapiAssistantId` for the voice page |
+| `/api/chat` | POST | Chat + optional TTS (ElevenLabs when configured) |
+| `/api/chat-stream` | POST | JSON or **SSE** stream (`stream: true`) |
+| `/api/transcribe` | POST | Whisper (multipart audio) |
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 .
 ├── api/
-│   ├── lib/
-│   │   ├── redis.js       # Upstash Redis client + session management
-│   │   └── cache.js       # Response caching for common queries
-│   ├── chat.js            # Standard chat endpoint
-│   ├── chat-stream.js     # Streaming chat endpoint (SSE)
-│   ├── health.js          # Health check
-│   └── transcribe.js      # Whisper transcription
+│   ├── _lib/           # redis, cache, tts, voice-prompt, env helpers
+│   ├── chat.js
+│   ├── chat-stream.js
+│   ├── health.js
+│   ├── transcribe.js
+│   └── vapi/           # webhook, outbound helpers
 ├── css/
-│   └── style.css          # Dark theme UI
 ├── js/
-│   └── agent.js           # Frontend: streaming, sessions, voice
-├── index.html             # Landing page
-├── agent.html             # Voice agent interface
-├── package.json           # Dependencies
-├── vercel.json            # Deployment config
-└── .env.example           # Environment template
+│   ├── agent.js        # Text chat + SSE + health bootstrap
+│   └── agent-vapi.js   # VAPI voice call UI
+├── server.js           # Local static + /api/* (mirrors serverless handlers)
+├── vercel.json
+├── .env.example
+└── ARCHITECTURE.md     # Deeper design + scale notes
 ```
 
 ---
 
-## Features Deep Dive
+## Features
 
-### Conversation Memory
-
-Sessions are stored in Redis with:
-- **50 message history** per session
-- **7-day TTL** (auto-cleanup)
-- **Metadata tracking** (language, last active)
-
-```javascript
-// Session is auto-created and persisted
-localStorage.getItem('riverwood_session_id') // ses_xyz...
-
-// Survives page refresh, browser restart
-```
-
-### Response Caching
-
-Common queries are cached to reduce API costs:
-- Greetings (hello, namaste, namaskar)
-- Progress questions (what's the progress)
-- Site visit queries
-- Thank you / goodbye messages
-
-Cache TTL: 2 hours
-
-### Rate Limiting
-
-- **30 requests per minute** per session
-- Prevents abuse and manages costs
-- Returns 429 when exceeded
-
-### Multi-Language Support
-
-| Language | Code | Voice |
-|----------|------|-------|
-| English | `en` | en-IN |
-| Hindi | `hi` | hi-IN (Devanagari) |
-| Marathi | `mr` | mr-IN (Devanagari) |
+- **Conversation memory:** Redis when configured; in-memory fallback with shorter retention
+- **Rate limiting:** Per session (see `api/_lib/redis.js`)
+- **Response caching:** Common greetings / FAQs (`api/_lib/cache.js`)
+- **Languages:** English, Hindi (Devanagari), Marathi (Devanagari)
 
 ---
 
-## Configuration
+## License / use
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | **Yes** | OpenAI API key |
-| `UPSTASH_REDIS_REST_URL` | Recommended | Redis URL for memory |
-| `UPSTASH_REDIS_REST_TOKEN` | Recommended | Redis auth token |
-
-### Without Redis
-
-The agent works without Redis but:
-- No conversation persistence (memory resets on refresh)
-- No response caching (higher API costs)
-- No rate limiting (potential abuse)
-
----
-
-## Performance Metrics
-
-| Metric | Target | Achieved |
-|--------|--------|----------|
-| First token latency | < 500ms | ~300-400ms |
-| Full response | < 2s | ~1-1.5s |
-| Memory persistence | 7 days | ✓ |
-| Concurrent sessions | Unlimited | ✓ (serverless) |
-
----
-
-## Cost Estimation
-
-| Component | Cost | Notes |
-|-----------|------|-------|
-| Vercel | Free tier | Up to 100GB bandwidth |
-| Upstash Redis | Free tier | 10K requests/day |
-| OpenAI GPT-4o-mini | ~$0.15/1M input tokens | Very cost-effective |
-| OpenAI TTS (optional) | $15/1M chars | Browser TTS is free |
-
-**Estimated cost:** $5-20/month for moderate usage (1000s of conversations)
-
----
-
-## License
-
-Built for Riverwood Projects LLP internship challenge.
+Built for the Riverwood Projects LLP internship challenge.

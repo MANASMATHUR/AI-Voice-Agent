@@ -6,6 +6,28 @@ A scalable AI voice agent for **Riverwood Estate** - a 15.5-acre premium residen
 
 The agent handles customer calls with personalized construction updates, answers project questions, and schedules site visits - all with conversation memory and natural voice interaction.
 
+### Mandatory production stack (VAPI + ElevenLabs)
+
+| Layer | Service | Env / config |
+|--------|---------|----------------|
+| **Voice Call UI** | VAPI (Web SDK) | `VAPI_PUBLIC_KEY`, `VAPI_ASSISTANT_ID` |
+| **Live voice pipeline** | VAPI orchestrates STT → LLM → TTS | In VAPI dashboard: **ElevenLabs** voice, **OpenAI** model |
+| **Text Chat API TTS** | ElevenLabs REST | `ELEVENLABS_API_KEY` (+ voice IDs) — **required** unless `ELEVENLABS_OPTIONAL=true` (dev only) |
+| **LLM** | OpenAI | `OPENAI_API_KEY` |
+| **Memory / scale** | Upstash Redis (recommended) | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
+
+### Final submission rubric (Riverwood — this round)
+
+| Criterion | Weight | How this repo addresses it |
+|-----------|--------|----------------------------|
+| **Voice realism** | **70%** | Priya speaks like a human: system prompts require **thinking time**, **fillers** ("um", "so...", "you know"), **pauses** (`...`, commas, em dashes), **conversational flow** (react → answer → one open question). **VAPI**: `responseDelaySeconds` / `llmRequestDelaySeconds` for natural pacing; **ElevenLabs**: stability/style tuned for warmth; **first messages** use hesitation. Text + TTS path uses the same `voice-prompt.js` philosophy. |
+| **Latency** | **15%** | SSE streaming, `gpt-4o-mini`, Eleven turbo / multilingual; VAPI `optimizeStreamingLatency` balanced (2) vs quality. |
+| **Cost efficiency** | **15%** | Mini model, response caching, per-session rate limits; Redis optional for scale. |
+
+`GET /api/health` returns `evaluation_criteria` (rubric below) plus `text_chat_ready` / `voice_call_ready` / `production_stack`.
+
+**Local dev:** `npm install && npm run dev` serves static files and `/api/*` via `server.js` (same handlers as Vercel). Use a real HTTP URL (not `file://`). For full Vercel parity, use `npx vercel dev`.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           CUSTOMER TOUCHPOINTS                               │

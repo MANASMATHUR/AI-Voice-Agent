@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from 'openai';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
+import { isValidOpenAIApiKey, openaiKeyErrorPayload } from './_lib/env.js';
 
 export const config = {
   api: {
@@ -31,8 +32,8 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || !apiKey.startsWith('sk-')) {
-    jsonResponse(res, 503, { error: 'OpenAI API key not configured' });
+  if (!isValidOpenAIApiKey(apiKey)) {
+    jsonResponse(res, 503, openaiKeyErrorPayload());
     return;
   }
 

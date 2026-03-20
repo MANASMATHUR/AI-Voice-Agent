@@ -27,7 +27,9 @@ const apiHandlers = {};
 async function loadApiHandler(route) {
   if (apiHandlers[route]) return apiHandlers[route];
 
-  const filePath = join(__dirname, `${route}.js`);
+  // Route is e.g. /api/health or /api/vapi/webhook — always resolve under project root
+  const rel = route.replace(/^\/+/, '');
+  const filePath = join(__dirname, `${rel}.js`);
   try {
     await stat(filePath);
     const mod = await import(`file://${filePath.replace(/\\/g, '/')}`);
@@ -67,11 +69,15 @@ function createResShim(res) {
       return shim;
     },
     json(data) {
-      res.writeHead(shim._statusCode, { 'Content-Type': 'application/json', ...shim._headers });
+      if (!res.headersSent) {
+        res.writeHead(shim._statusCode, { 'Content-Type': 'application/json', ...shim._headers });
+      }
       res.end(JSON.stringify(data));
     },
     send(data) {
-      res.writeHead(shim._statusCode, shim._headers);
+      if (!res.headersSent) {
+        res.writeHead(shim._statusCode, shim._headers);
+      }
       res.end(data);
     },
     write(chunk) {

@@ -5,6 +5,14 @@ import {
   incrementRateLimit,
 } from './_lib/redis.js';
 import { getCachedResponse, setCachedResponse } from './_lib/cache.js';
+import {
+  isValidOpenAIApiKey,
+  openaiKeyErrorPayload,
+  isElevenLabsRequired,
+  isElevenLabsConfigured,
+  elevenlabsKeyErrorPayload,
+} from './_lib/env.js';
+import { generateSpeech } from './_lib/tts.js';
 
 const MAX_CONTEXT_MESSAGES = 20;
 const MAX_COMPLETION_TOKENS = 150;
@@ -44,8 +52,8 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || !apiKey.startsWith('sk-')) {
-    jsonResponse(res, 503, { error: 'OpenAI API key not configured' });
+  if (!isValidOpenAIApiKey(apiKey)) {
+    jsonResponse(res, 503, openaiKeyErrorPayload());
     return;
   }
 
@@ -64,6 +72,11 @@ export default async function handler(req, res) {
   const sessionId = body.sessionId || null;
   const lang = ['en', 'hi', 'mr'].includes(body.language) ? body.language : 'en';
   const useTTS = body.tts !== false;
+
+  if (useTTS && isElevenLabsRequired() && !isElevenLabsConfigured()) {
+    jsonResponse(res, 503, elevenlabsKeyErrorPayload());
+    return;
+  }
 
   if (sessionId) {
     const rateLimit = await incrementRateLimit(sessionId);
@@ -89,7 +102,23 @@ export default async function handler(req, res) {
 
   const cachedResponse = await getCachedResponse(lastUserMessage, lang);
   if (cachedResponse) {
-    jsonResponse(res, 200, { reply: cachedResponse.reply, cached: true });
+    const payload = { reply: cachedResponse.reply, cached: true };
+    if (useTTS) {
+      const tts = await generateSpeech(cachedResponse.reply, { language: lang });
+      if (tts.error) {
+        jsonResponse(res, 502, {
+          error: 'ElevenLabs speech generation failed',
+          code: tts.error,
+          hint: tts.hint,
+          reply: cachedResponse.reply,
+          cached: true,
+        });
+        return;
+      }
+      payload.audioBase64 = tts.audioBase64;
+      payload.ttsProvider = tts.provider;
+    }
+    jsonResponse(res, 200, payload);
     return;
   }
 
@@ -134,16 +163,21 @@ export default async function handler(req, res) {
     await setCachedResponse(lastUserMessage, lang, reply);
 
     if (useTTS) {
-      const mp3Response = await openai.audio.speech.create({
-        model: "tts-1",
-        voice: "alloy",
-        input: reply,
-        response_format: "mp3"
+      const tts = await generateSpeech(reply, { language: lang });
+      if (tts.error) {
+        jsonResponse(res, 502, {
+          error: 'ElevenLabs speech generation failed',
+          code: tts.error,
+          hint: tts.hint,
+          reply,
+        });
+        return;
+      }
+      jsonResponse(res, 200, {
+        reply,
+        audioBase64: tts.audioBase64,
+        ttsProvider: tts.provider,
       });
-
-      const buffer = Buffer.from(await mp3Response.arrayBuffer());
-      const audioBase64 = buffer.toString('base64');
-      jsonResponse(res, 200, { reply, audioBase64 });
     } else {
       jsonResponse(res, 200, { reply });
     }

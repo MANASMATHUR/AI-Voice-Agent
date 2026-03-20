@@ -442,6 +442,19 @@ body::before {
   border-radius: var(--radius);
   font-size: 0.875rem;
   margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+#api-config-banner.error,
+.rate-limit-warning.error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.lang-toggle .mode-tab.active[disabled] {
+  opacity: 1;
+  cursor: default;
 }
 
 /* Visually hidden label for screen readers */

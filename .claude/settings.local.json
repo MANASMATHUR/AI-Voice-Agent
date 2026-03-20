@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(grep -rn \"^[[:space:]]*//\" --include=\"*.js\" js/ api/ server.js)"
-    ]
-  }
-}

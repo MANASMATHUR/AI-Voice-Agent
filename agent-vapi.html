@@ -267,6 +267,12 @@
       font-size: 0.8125rem;
     }
 
+    .config-note--error {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .call-avatar.speaking,
       .call-avatar.listening {
@@ -295,8 +301,7 @@
     </div>
 
     <div id="config-warning" class="config-note" style="display:none;">
-      VAPI is not configured. Add <code>VAPI_PUBLIC_KEY</code> to your environment to enable voice calls.
-      Using text chat mode as fallback.
+      <strong>Required stack:</strong> <code>VAPI_PUBLIC_KEY</code> (+ <code>VAPI_ASSISTANT_ID</code>) for this page. In the <strong>VAPI dashboard</strong>, set the assistant voice provider to <strong>ElevenLabs</strong> and LLM to <strong>OpenAI</strong>. For <strong>Text Chat</strong>, this deployment also needs <code>ELEVENLABS_API_KEY</code> (mandatory unless <code>ELEVENLABS_OPTIONAL=true</code>).
     </div>
 
     <div class="agent-card">
@@ -329,11 +334,13 @@
   </div>
 
   <script type="module">
+    // jsDelivr +esm re-exports the CJS bundle as default = module namespace; the class is on .default
     import VapiModule from "https://cdn.jsdelivr.net/npm/@vapi-ai/web@2.5.2/+esm";
-    window.Vapi = VapiModule;
+    var ctor = typeof VapiModule === "function" ? VapiModule : VapiModule && VapiModule.default;
+    window.Vapi = typeof ctor === "function" ? ctor : null;
     // Load agent script after Vapi is available globally
-    var s = document.createElement('script');
-    s.src = 'js/agent-vapi.js';
+    var s = document.createElement("script");
+    s.src = "js/agent-vapi.js";
     document.body.appendChild(s);
   </script>
 </body>

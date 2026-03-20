@@ -1,27 +1,40 @@
+import {
+  isElevenLabsConfigured,
+  isElevenLabsRequired,
+} from './env.js';
+
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pFZP5JQG7iQjIQuC4Bku';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_VOICE = process.env.OPENAI_TTS_VOICE || 'shimmer';
 
 export function getTTSProvider() {
-  if (ELEVENLABS_API_KEY) return 'elevenlabs';
+  if (isElevenLabsConfigured()) return 'elevenlabs';
   if (OPENAI_API_KEY) return 'openai';
   return 'browser';
 }
 
+/**
+ * Generate speech. If ElevenLabs is required (default) and missing, returns error object.
+ */
 export async function generateSpeech(text, options = {}) {
-  const provider = options.provider || getTTSProvider();
   const lang = options.language || 'en';
 
-  if (provider === 'elevenlabs' && ELEVENLABS_API_KEY) {
-    return generateElevenLabsSpeech(text, lang);
+  if (isElevenLabsRequired() && !isElevenLabsConfigured()) {
+    return {
+      provider: null,
+      audioBase64: null,
+      error: 'ELEVENLABS_NOT_CONFIGURED',
+    };
   }
 
-  if (provider === 'openai' && OPENAI_API_KEY) {
-    return generateOpenAISpeech(text, lang);
+  if (isElevenLabsConfigured()) {
+    const out = await generateElevenLabsSpeech(text, lang);
+    if (!out.error && out.audioBase64) return out;
+    if (isElevenLabsRequired()) return out;
+    return await generateOpenAISpeech(text, lang);
   }
 
-  return { provider: 'browser', audioBase64: null };
+  return await generateOpenAISpeech(text, lang);
 }
 
 async function generateElevenLabsSpeech(text, lang) {
@@ -34,17 +47,18 @@ async function generateElevenLabsSpeech(text, lang) {
       {
         method: 'POST',
         headers: {
-          'Accept': 'audio/mpeg',
+          Accept: 'audio/mpeg',
           'Content-Type': 'application/json',
           'xi-api-key': ELEVENLABS_API_KEY,
         },
         body: JSON.stringify({
           text: text.slice(0, 2500),
           model_id: modelId,
+          // Tuned for conversational realism (pauses in text matter more; these add warmth)
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.3,
+            stability: 0.48,
+            similarity_boost: 0.8,
+            style: 0.42,
             use_speaker_boost: true,
           },
         }),
@@ -52,8 +66,15 @@ async function generateElevenLabsSpeech(text, lang) {
     );
 
     if (!response.ok) {
-      console.error('ElevenLabs error:', response.status);
-      return generateOpenAISpeech(text);
+      const errText = await response.text().catch(() => '');
+      console.error('ElevenLabs error:', response.status, errText);
+      return {
+        provider: null,
+        audioBase64: null,
+        error: 'ELEVENLABS_API_ERROR',
+        status: response.status,
+        hint: 'Check ELEVENLABS_API_KEY quota and voice IDs.',
+      };
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -64,7 +85,12 @@ async function generateElevenLabsSpeech(text, lang) {
     };
   } catch (err) {
     console.error('ElevenLabs error:', err.message);
-    return generateOpenAISpeech(text);
+    return {
+      provider: null,
+      audioBase64: null,
+      error: 'ELEVENLABS_REQUEST_FAILED',
+      hint: err.message,
+    };
   }
 }
 
@@ -107,7 +133,7 @@ function getVoiceForLanguage(lang) {
 }
 
 export async function streamElevenLabsSpeech(text, lang = 'en') {
-  if (!ELEVENLABS_API_KEY) return null;
+  if (!isElevenLabsConfigured()) return null;
 
   const voiceId = getVoiceForLanguage(lang);
   const modelId = lang === 'en' ? 'eleven_turbo_v2_5' : 'eleven_multilingual_v2';
@@ -118,7 +144,7 @@ export async function streamElevenLabsSpeech(text, lang = 'en') {
       {
         method: 'POST',
         headers: {
-          'Accept': 'audio/mpeg',
+          Accept: 'audio/mpeg',
           'Content-Type': 'application/json',
           'xi-api-key': ELEVENLABS_API_KEY,
         },

@@ -9,6 +9,13 @@ import {
 import { getCachedResponse, setCachedResponse } from './_lib/cache.js';
 import { generateSpeech } from './_lib/tts.js';
 import { getVoiceSystemPrompt } from './_lib/voice-prompt.js';
+import {
+  isValidOpenAIApiKey,
+  openaiKeyErrorPayload,
+  isElevenLabsRequired,
+  isElevenLabsConfigured,
+  elevenlabsKeyErrorPayload,
+} from './_lib/env.js';
 
 const MAX_CONTEXT_MESSAGES = 20;
 const MAX_COMPLETION_TOKENS = 200;
@@ -48,8 +55,13 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || !apiKey.startsWith('sk-')) {
-    res.status(503).json({ error: 'OpenAI API key not configured' });
+  if (!isValidOpenAIApiKey(apiKey)) {
+    res.status(503).json(openaiKeyErrorPayload());
+    return;
+  }
+
+  if (isElevenLabsRequired() && !isElevenLabsConfigured()) {
+    res.status(503).json(elevenlabsKeyErrorPayload());
     return;
   }
 
@@ -82,10 +94,24 @@ export default async function handler(req, res) {
     await appendMessage(sessionId, { role: 'user', content: userMessage });
     await appendMessage(sessionId, { role: 'assistant', content: cachedResponse.reply });
 
+    const ttsCached = await generateSpeech(cachedResponse.reply, { language: lang });
+    if (ttsCached.error) {
+      res.status(502).json({
+        error: 'ElevenLabs speech generation failed',
+        code: ttsCached.error,
+        hint: ttsCached.hint || elevenlabsKeyErrorPayload().hint,
+        reply: cachedResponse.reply,
+        sessionId,
+        cached: true,
+      });
+      return;
+    }
     res.status(200).json({
       reply: cachedResponse.reply,
       sessionId,
       cached: true,
+      audioBase64: ttsCached.audioBase64,
+      ttsProvider: ttsCached.provider,
     });
     return;
   }
@@ -120,7 +146,7 @@ export default async function handler(req, res) {
         model: MODEL,
         messages,
         max_tokens: MAX_COMPLETION_TOKENS,
-        temperature: 0.7,
+        temperature: 0.72,
         stream: true,
       });
 
@@ -149,6 +175,8 @@ export default async function handler(req, res) {
         fullReply,
         audioBase64: tts.audioBase64,
         ttsProvider: tts.provider,
+        ttsError: tts.error || null,
+        ttsHint: tts.hint || null,
       })}\n\n`);
       res.end();
     } else {
@@ -156,7 +184,7 @@ export default async function handler(req, res) {
         model: MODEL,
         messages,
         max_tokens: MAX_COMPLETION_TOKENS,
-        temperature: 0.7,
+        temperature: 0.72,
       });
 
       const reply = completion.choices?.[0]?.message?.content?.trim() || '';
@@ -174,6 +202,17 @@ export default async function handler(req, res) {
 
       const tts = await generateSpeech(reply, { language: lang });
 
+      if (tts.error) {
+        res.status(502).json({
+          error: 'ElevenLabs speech generation failed',
+          code: tts.error,
+          hint: tts.hint || elevenlabsKeyErrorPayload().hint,
+          reply,
+          sessionId,
+        });
+        return;
+      }
+
       res.status(200).json({
         reply,
         sessionId,
@@ -183,8 +222,18 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('Chat error:', err);
-    const code = err.status === 429 ? 429 : err.status === 401 ? 401 : 502;
-    res.status(code).json({ error: err.message || 'Model request failed' });
+    const status = err.status === 429 ? 429 : err.status === 401 ? 401 : 502;
+    const hint =
+      status === 401
+        ? 'Check that OPENAI_API_KEY is valid and not expired.'
+        : status === 429
+          ? 'OpenAI rate limit reached. Wait a moment and retry.'
+          : 'Temporary model error. Retry shortly.';
+    res.status(status).json({
+      error: err.message || 'Model request failed',
+      code: status === 401 ? 'OPENAI_AUTH' : status === 429 ? 'OPENAI_RATE_LIMIT' : 'MODEL_ERROR',
+      hint,
+    });
   }
 }
 

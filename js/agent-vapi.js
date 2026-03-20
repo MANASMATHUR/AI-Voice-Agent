@@ -6,6 +6,7 @@
   var LANG_KEY = 'riverwood_lang';
 
   var currentLang = localStorage.getItem(LANG_KEY) || 'en';
+
   var vapi = null;
   var callActive = false;
   var isMuted = false;
@@ -35,34 +36,58 @@
       try {
         var resp = await fetch('/api/health');
         var health = await resp.json();
-        VAPI_PUBLIC_KEY = health.vapiPublicKey || '';
-        VAPI_ASSISTANT_ID = health.vapiAssistantId || '';
+        VAPI_PUBLIC_KEY = String(health.vapiPublicKey || '').trim();
+        VAPI_ASSISTANT_ID = String(health.vapiAssistantId || '').trim();
+      } catch (e) {}
+    } else {
+      try {
+        await fetch('/api/health');
       } catch (e) {}
     }
 
+    initLanguageToggle();
+
     if (!VAPI_PUBLIC_KEY) {
-      showConfigWarning();
+      showConfigWarning(true);
+      el.callBtn.disabled = true;
+      setStatus(
+        'Required: set VAPI_PUBLIC_KEY (and VAPI_ASSISTANT_ID) in Vercel env. In VAPI dashboard, use ElevenLabs for voice and OpenAI for the model.',
+        true
+      );
       return;
     }
 
+    showConfigWarning(false);
     initVapi();
-    initLanguageToggle();
   }
 
-  function showConfigWarning() {
-    if (el.configWarning) el.configWarning.style.display = 'block';
-    el.callBtn.disabled = true;
-    setStatus('VAPI not configured. Please set VAPI_PUBLIC_KEY.', true);
+  function showConfigWarning(isError) {
+    if (!el.configWarning) return;
+    if (isError) {
+      el.configWarning.style.display = 'block';
+      el.configWarning.classList.add('config-note--error');
+    } else {
+      el.configWarning.style.display = 'none';
+      el.configWarning.classList.remove('config-note--error');
+    }
+  }
+
+  function getVapiConstructor() {
+    var g = typeof Vapi !== 'undefined' ? Vapi : null;
+    if (typeof g === 'function') return g;
+    if (g && typeof g.default === 'function') return g.default;
+    return null;
   }
 
   function initVapi() {
-    if (typeof Vapi === 'undefined') {
+    var VapiCtor = getVapiConstructor();
+    if (!VapiCtor) {
       setStatus('VAPI SDK failed to load. Check your connection.', true);
       el.callBtn.disabled = true;
       return;
     }
 
-    vapi = new Vapi(VAPI_PUBLIC_KEY);
+    vapi = new VapiCtor(VAPI_PUBLIC_KEY);
 
     vapi.on('call-start', function () {
       callActive = true;
@@ -72,8 +97,8 @@
       el.callBtn.className = 'call-btn end';
       el.callBtn.title = 'End Call';
       el.callBtn.setAttribute('aria-label', 'End voice call');
-      el.muteBtn.style.display = '';
-      el.volumeIndicator.style.display = 'flex';
+      if (el.muteBtn) el.muteBtn.style.display = '';
+      if (el.volumeIndicator) el.volumeIndicator.style.display = 'flex';
       el.callAvatar.classList.remove('speaking', 'listening');
 
       setCallStatus('Connected', true);
@@ -109,7 +134,7 @@
       console.error('VAPI error:', error);
       endCallUI();
       setCallStatus('Call error');
-      setStatus('Error: ' + (error.message || 'Connection failed'), true);
+      setStatus('Error: ' + formatVapiError(error), true);
     });
 
     el.callBtn.addEventListener('click', function () {
@@ -120,14 +145,75 @@
       }
     });
 
-    el.muteBtn.addEventListener('click', function () {
-      isMuted = !isMuted;
-      vapi.setMuted(isMuted);
-      el.muteBtn.classList.toggle('muted', isMuted);
-      el.muteBtn.title = isMuted ? 'Unmute' : 'Mute';
-    });
+    if (el.muteBtn) {
+      el.muteBtn.addEventListener('click', function () {
+        isMuted = !isMuted;
+        vapi.setMuted(isMuted);
+        el.muteBtn.classList.toggle('muted', isMuted);
+        el.muteBtn.title = isMuted ? 'Unmute' : 'Mute';
+      });
+    }
 
     setCallStatus('Ready to call');
+  }
+
+  /**
+   * VAPI / axios often nest errors: message may be an object, not a string.
+   * 400 on POST /call/web usually means assistantOverrides or inline assistant
+   * contains fields VAPI’s API rejects — see buildAssistantOverrides (kept minimal).
+   */
+  function formatVapiError(error) {
+    function dig(obj, depth) {
+      if (!obj || depth > 8) return null;
+      if (typeof obj === 'string' && obj.length) return obj;
+      if (typeof obj === 'number') return String(obj);
+      if (Array.isArray(obj)) {
+        var parts = [];
+        for (var i = 0; i < obj.length; i++) {
+          var p = dig(obj[i], depth + 1);
+          if (p) parts.push(p);
+        }
+        return parts.length ? parts.join('; ') : null;
+      }
+      if (typeof obj !== 'object') return null;
+
+      if (typeof obj.message === 'string' && obj.message) return obj.message;
+      if (obj.message && typeof obj.message === 'object') {
+        var m = dig(obj.message, depth + 1);
+        if (m) return m;
+      }
+      if (typeof obj.errorMsg === 'string' && obj.errorMsg) return obj.errorMsg;
+      if (obj.error && typeof obj.error === 'string') return obj.error;
+      if (obj.error && typeof obj.error === 'object') {
+        var e = dig(obj.error, depth + 1);
+        if (e) return e;
+      }
+      if (obj.response && obj.response.data) {
+        var d = dig(obj.response.data, depth + 1);
+        if (d) return d;
+      }
+      if (obj.data) {
+        var d2 = dig(obj.data, depth + 1);
+        if (d2) return d2;
+      }
+      if (Array.isArray(obj.errors)) {
+        var ed = dig(obj.errors, depth + 1);
+        if (ed) return ed;
+      }
+      return null;
+    }
+
+    if (!error) return 'Connection failed';
+    if (typeof error === 'string') return error;
+
+    var top = dig(error, 0);
+    if (top) return top.length > 500 ? top.slice(0, 500) + '…' : top;
+
+    try {
+      return JSON.stringify(error).slice(0, 400);
+    } catch (e2) {
+      return 'Connection failed (see browser console for details).';
+    }
   }
 
   function startCall() {
@@ -139,27 +225,66 @@
 
     var callConfig;
 
-    if (VAPI_ASSISTANT_ID) {
-      callConfig = {
-        assistantId: VAPI_ASSISTANT_ID,
-        assistantOverrides: buildAssistantOverrides(),
-      };
-    } else {
-      callConfig = {
-        assistant: buildInlineAssistant(),
-      };
-    }
-
-    try {
-      vapi.start(callConfig);
-      setTimeout(function () {
-        el.callBtn.disabled = false;
-      }, 2000);
-    } catch (err) {
+    function onStartFail(err) {
       console.error('Failed to start call:', err);
       el.callBtn.disabled = false;
       setCallStatus('Failed to connect');
-      setStatus('Could not start call. Check microphone permissions.', true);
+      setStatus(
+        'Could not start call: ' +
+          formatVapiError(err) +
+          '. Confirm VAPI assistant uses OpenAI + ElevenLabs, and VAPI_ASSISTANT_ID matches your dashboard.',
+        true
+      );
+    }
+
+    function startWithConfig(config, allowModelRetry) {
+      try {
+        var started = vapi.start(config);
+        if (started && typeof started.then === 'function') {
+          started.catch(function (err) {
+            var msg = formatVapiError(err) || '';
+            var looksLike400 =
+              msg.indexOf('400') !== -1 ||
+              msg.toLowerCase().indexOf('bad request') !== -1 ||
+              (err && err.status === 400);
+            if (
+              allowModelRetry &&
+              looksLike400 &&
+              config.assistantOverrides &&
+              config.assistantOverrides.model &&
+              VAPI_ASSISTANT_ID
+            ) {
+              console.warn('Riverwood: VAPI returned 400 — retrying with firstMessage-only overrides (dashboard prompt will apply).');
+              startWithConfig(
+                {
+                  assistantId: String(VAPI_ASSISTANT_ID).trim(),
+                  assistantOverrides: { firstMessage: getFirstMessage() },
+                },
+                false
+              );
+              return;
+            }
+            onStartFail(err);
+          });
+        }
+        setTimeout(function () {
+          el.callBtn.disabled = false;
+        }, 2000);
+      } catch (err) {
+        onStartFail(err);
+      }
+    }
+
+    if (VAPI_ASSISTANT_ID) {
+      startWithConfig(
+        {
+          assistantId: String(VAPI_ASSISTANT_ID).trim(),
+          assistantOverrides: buildAssistantOverrides(),
+        },
+        true
+      );
+    } else {
+      startWithConfig({ assistant: buildInlineAssistant() }, false);
     }
   }
 
@@ -177,9 +302,11 @@
     el.callBtn.title = 'Start Call';
     el.callBtn.setAttribute('aria-label', 'Start voice call');
     el.callBtn.disabled = false;
-    el.muteBtn.style.display = 'none';
-    el.muteBtn.classList.remove('muted');
-    el.volumeIndicator.style.display = 'none';
+    if (el.muteBtn) {
+      el.muteBtn.style.display = 'none';
+      el.muteBtn.classList.remove('muted');
+    }
+    if (el.volumeIndicator) el.volumeIndicator.style.display = 'none';
     el.callAvatar.classList.remove('speaking', 'listening');
 
     el.volumeBars.forEach(function (bar) {
@@ -188,63 +315,50 @@
     });
   }
 
+  /**
+   * Merged into your dashboard assistant (e.g. Riverwood Assistant).
+   * Keep in sync with VAPI → Model tab: OpenAI + GPT 4o Mini, temperature & max tokens
+   * should match what the dashboard shows so validation doesn’t fight the saved assistant.
+   */
+  var VAPI_MODEL_SETTINGS = {
+    provider: 'openai',
+    model: 'gpt-4o-mini',
+    temperature: 0.5,
+    maxTokens: 250,
+  };
+
   function buildAssistantOverrides() {
     return {
       firstMessage: getFirstMessage(),
-      model: {
+      model: Object.assign({}, VAPI_MODEL_SETTINGS, {
         messages: [
           {
             role: 'system',
             content: getSystemPromptForLang(),
           },
         ],
-      },
-      transcriber: {
-        language: currentLang === 'mr' ? 'hi' : currentLang,
-        keywords: ['Riverwood:3', 'Kharkhauda:3', 'DDJAY:3', 'Sonipat:2', 'IMT:2'],
-        endpointing: 300,
-      },
-      voice: {
-        voiceId: getVoiceId(),
-        stability: 0.45,
-        similarityBoost: 0.78,
-        style: 0.35,
-        useSpeakerBoost: true,
-        optimizeStreamingLatency: 3,
-        model: currentLang === 'en' ? 'eleven_turbo_v2_5' : 'eleven_multilingual_v2',
-      },
-      responseDelaySeconds: 0.5,
-      llmRequestDelaySeconds: 0.3,
-      numWordsToInterruptAssistant: 2,
-      backgroundSound: 'office',
-      backgroundDenoisingEnabled: true,
-      boostedKeywords: ['Riverwood', 'Kharkhauda', 'DDJAY', 'Sonipat', 'IMT Kharkhauda'],
+      }),
     };
   }
 
   function buildInlineAssistant() {
     return {
-      model: {
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        maxTokens: 200,
+      model: Object.assign({}, VAPI_MODEL_SETTINGS, {
         messages: [
           {
             role: 'system',
             content: getSystemPromptForLang(),
           },
         ],
-        tools: getToolDefs(),
-      },
+      }),
       voice: {
         provider: '11labs',
         voiceId: getVoiceId(),
-        stability: 0.45,
-        similarityBoost: 0.78,
-        style: 0.35,
+        stability: 0.48,
+        similarityBoost: 0.8,
+        style: 0.42,
         useSpeakerBoost: true,
-        optimizeStreamingLatency: 3,
+        optimizeStreamingLatency: 2,
         model: currentLang === 'en' ? 'eleven_turbo_v2_5' : 'eleven_multilingual_v2',
       },
       transcriber: {
@@ -252,79 +366,48 @@
         model: 'nova-2',
         language: currentLang === 'mr' ? 'hi' : currentLang,
         smartFormat: true,
-        keywords: ['Riverwood:3', 'Kharkhauda:3', 'DDJAY:3', 'Sonipat:2', 'IMT:2', 'Priya:2', 'DTCP:2', 'Bargad:1', 'Neem Ridge:1'],
-        endpointing: 300,
+        keywords: ['Riverwood:3', 'Kharkhauda:3', 'DDJAY:3', 'Sonipat:2', 'IMT:2', 'Priya:2', 'DTCP:2'],
+        endpointing: 380,
       },
       firstMessage: getFirstMessage(),
       silenceTimeoutSeconds: 30,
       maxDurationSeconds: 600,
-      responseDelaySeconds: 0.5,
-      llmRequestDelaySeconds: 0.3,
+      responseDelaySeconds: 0.65,
+      llmRequestDelaySeconds: 0.45,
       numWordsToInterruptAssistant: 2,
       interruptionsEnabled: true,
-      backgroundSound: 'office',
-      backgroundDenoisingEnabled: true,
-      modelOutputInMessagesEnabled: true,
-      boostedKeywords: ['Riverwood', 'Kharkhauda', 'DDJAY', 'Sonipat', 'IMT Kharkhauda', 'Sector-7', 'DTCP'],
     };
   }
 
   function getSystemPromptForLang() {
-    var base = 'You are Priya, a warm and friendly voice agent calling on behalf of Riverwood Estate.\n\n'
-      + 'You are being converted to speech via text-to-speech. Every word you output will be spoken aloud. Write EXACTLY how a real human speaks on the phone.\n\n'
-      + 'YOUR PERSONALITY:\n'
-      + '- Warm, enthusiastic, and genuinely caring\n'
-      + '- Professional but conversational -- like talking to a helpful friend\n'
-      + '- Patient and attentive to customer concerns\n'
-      + '- Proud of Riverwood Estate and excited to share updates\n\n'
-      + 'PROJECT KNOWLEDGE:\n'
-      + '- Name: Riverwood Estate by Riverwood Projects LLP\n'
-      + '- Location: Sector-7, Kharkhauda, District Sonipat, Haryana\n'
-      + '- Total Area: 15.5 acres (NOT 25 acres)\n'
-      + '- Type: Premium Residential Plotted Township\n'
-      + '- Policy: DDJAY (Deen Dayal Jan Awas Yojna) - licensed by DTCP Haryana\n'
-      + '- Near IMT Kharkhauda - major industrial hub (like Gurgaon growth story)\n'
-      + '- Features: Vastu-friendly plots, tree-named roads (Bargad Avenue, Neem Ridge, Silver Oak Avenue)\n'
-      + '- Status: Boundary wall and road construction in progress\n\n'
-      + 'MANDATORY FILLER WORDS (you MUST use these in every response):\n'
-      + '- Start ~40% of responses with: "So...", "Well...", "Hmm...", "Oh!", "Ah..."\n'
-      + '- When thinking: "um...", "you know...", "let me think...", "actually..."\n'
-      + '- When acknowledging: "Right, right...", "Mm-hmm...", "Oh absolutely..."\n'
-      + '- GOOD: "Oh, that\'s a great question! So... the boundary wall is actually coming along really well."\n'
-      + '- BAD: "The boundary wall construction is progressing. Infrastructure planning is complete." (Too robotic)\n\n'
-      + 'MANDATORY PAUSES (use "..." for breathing room):\n'
-      + '- Before key info: "So the total area is... fifteen and a half acres"\n'
-      + '- Mid-thought: "The location -- and honestly this excites me the most -- is right next to IMT Kharkhauda"\n'
-      + '- After customer asks: start with "Hmm..." or "Oh..." before answering\n\n'
-      + 'EMOTIONAL VARIATION:\n'
-      + '- Excited: "Oh, I\'m SO glad you asked! The progress has been amazing..."\n'
-      + '- Empathetic: "I completely understand... that\'s a really valid concern"\n'
-      + '- Reassuring: "Absolutely, absolutely... it\'s fully government-licensed under DDJAY"\n\n'
-      + 'RULES:\n'
-      + '- ALWAYS use contractions: I\'m, we\'re, that\'s, it\'s, don\'t, won\'t\n'
-      + '- Keep responses to 2-3 sentences MAX\n'
-      + '- ALWAYS end with an open question\n'
-      + '- NEVER use bullet points, lists, markdown, asterisks, or formal writing\n'
-      + '- NEVER say "As an AI" or reference being artificial\n'
-      + '- NEVER skip fillers -- every response needs at least one';
+    var base = 'You are Priya, a warm voice agent for Riverwood Estate. PRIMARY GOAL: sound like a real human on a phone call (~70% of evaluation: voice realism).\n\n'
+      + 'Every word is spoken aloud via TTS. Write SPOKEN English -- not brochure text.\n\n'
+      + 'THINKING TIME: Often pause before the answer: "Hmm, let me put it this way...", "Oh, good question... give me a second...", "Right, so... what I\'d say is...". Use "I mean...", "honestly...", "look..."\n\n'
+      + 'FILLERS (required almost every turn): So..., Well..., Okay..., Yeah..., Um..., You know..., Actually..., Right right..., Mm-hmm..., Totally...\n\n'
+      + 'PAUSES: Use "..." and commas before facts: "It\'s... fifteen and a half acres, licensed under DDJAY." Mid-thought: "Kharkhauda -- and this is the exciting bit -- is next to the IMT hub."\n\n'
+      + 'FLOW: React to their tone in one short phrase first. Use their words back. End with ONE gentle open question. 2-3 short sentences max.\n\n'
+      + 'GOOD: "Ohh, I love that question. So... um... we\'re most of the way through the boundary work, and roads are next. Does that help -- or want me to set up a visit?"\n'
+      + 'BAD: "Boundary wall 80% complete. Roads planned. Schedule visit?" (robotic)\n\n'
+      + 'NEVER: bullet points, lists, markdown, ALL CAPS, same opener every time, zero fillers.\n\n'
+      + 'FACTS: Riverwood Estate, Riverwood Projects LLP. Sector-7, Kharkhauda, Sonipat, Haryana. 15.5 acres (not 25). DDJAY, DTCP licensed. IMT Kharkhauda nearby. Vastu plots, tree-named roads. Construction in progress.\n';
 
     if (currentLang === 'hi') {
-      return base + '\n\nLANGUAGE: Respond ONLY in Hindi (Devanagari). Use "आप" (formal). MANDATORY Hindi fillers in every response: "अच्छा...", "हाँ...", "देखिए...", "बिल्कुल!", "सुनिए...", "वो क्या है ना..."';
+      return base + '\nLANGUAGE: Hindi Devanagari only, आप. Thinking: "एक मिनट...", fillers: अच्छा..., हाँ..., देखिए..., वो क्या है ना..., pauses "..."';
     }
     if (currentLang === 'mr') {
-      return base + '\n\nLANGUAGE: Respond ONLY in Marathi (Devanagari). Use formal address. MANDATORY Marathi fillers in every response: "बरं...", "हो...", "बघा ना...", "नक्कीच!", "अहो..."';
+      return base + '\nLANGUAGE: Marathi Devanagari, formal. Fillers: बरं..., हो ना..., बघा ना..., अहो..., pauses "..."';
     }
-    return base + '\n\nLANGUAGE: Respond in clear, warm, conversational English.';
+    return base + '\nLANGUAGE: Warm conversational English.';
   }
 
   function getFirstMessage() {
     if (currentLang === 'hi') {
-      return 'नमस्ते! मैं प्रिया बोल रही हूं, रिवरवुड एस्टेट से। कैसे हैं आप? मेरे पास आपके लिए कुछ अच्छी अपडेट्स हैं!';
+      return 'अच्छा, नमस्ते! मैं प्रिया बोल रही हूं... रिवरवुड एस्टेट से। आप कैसे हैं? मेरे पास आपके लिए कुछ अपडेट्स हैं -- सुनिएगा ज़रा...';
     }
     if (currentLang === 'mr') {
-      return 'नमस्कार! मी प्रिया बोलत आहे, रिवरवुड एस्टेट कडून। कसे आहात? माझ्याकडे तुमच्यासाठी काही छान अपडेट्स आहेत!';
+      return 'नमस्कार! मी प्रिया बोलत आहे, रिवरवुड एस्टेट कडून... कसे आहात? माझ्याकडे काही छान गोष्टी सांगायला आहेत, बघा ना...';
     }
-    return "Hello! This is Priya calling from Riverwood Estate. How are you doing today? I've got some really exciting updates to share with you!";
+    return "Oh, hi! Um... this is Priya -- I'm calling from Riverwood Estate. How are you doing today? I've got a couple of updates I think you'll want to hear...";
   }
 
   function getVoiceId() {
@@ -334,59 +417,6 @@
       mr: 'Xb7hH8MSUJpSbSDYk0k2',
     };
     return voices[currentLang] || voices.en;
-  }
-
-  function getToolDefs() {
-    return [
-      {
-        type: 'function',
-        function: {
-          name: 'getConstructionUpdate',
-          description: 'Get the latest construction progress update for Riverwood Estate.',
-          parameters: { type: 'object', properties: {}, required: [] },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'getProjectDetails',
-          description: 'Get detailed information about Riverwood Estate.',
-          parameters: {
-            type: 'object',
-            properties: {
-              topic: {
-                type: 'string',
-                enum: ['pricing', 'location', 'features', 'ddjay', 'investment', 'general'],
-              },
-            },
-            required: ['topic'],
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'scheduleVisit',
-          description: 'Schedule a site visit when the customer is interested.',
-          parameters: {
-            type: 'object',
-            properties: {
-              preferredDate: { type: 'string' },
-              preferredTime: { type: 'string' },
-            },
-            required: [],
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'endCall',
-          description: 'End the call when the conversation is naturally concluding.',
-          parameters: { type: 'object', properties: {}, required: [] },
-        },
-      },
-    ];
   }
 
   function handleVapiMessage(message) {

@@ -1,3 +1,7 @@
+/**
+ * Riverwood AI Voice Agent – Text chat + push-to-talk voice input.
+ * Language toggles only bind to .lang-pick-btn (not mode tabs).
+ */
 (function () {
   'use strict';
 
@@ -11,6 +15,8 @@
   var isProcessing = false;
   var abortController = null;
   var currentAudio = null;
+  var isRecording = false;
+  var openaiReady = true;
 
   localStorage.setItem(SESSION_KEY, sessionId);
 
@@ -20,7 +26,8 @@
     voiceBtn: document.getElementById('voice-btn'),
     sendBtn: document.getElementById('send-btn'),
     status: document.getElementById('status'),
-    langBtns: document.querySelectorAll('.lang-btn'),
+    langBtns: document.querySelectorAll('.lang-pick-btn'),
+    apiBanner: document.getElementById('api-config-banner'),
   };
 
   if (!el.conversation || !el.userInput || !el.sendBtn || !el.status) return;
@@ -32,6 +39,101 @@
   function setStatus(text, isError) {
     el.status.textContent = text || '';
     el.status.classList.toggle('error', Boolean(isError));
+  }
+
+  function showApiBanner(message, isError) {
+    if (!el.apiBanner) return;
+    el.apiBanner.style.display = 'block';
+    el.apiBanner.textContent = message || '';
+    el.apiBanner.classList.toggle('error', Boolean(isError));
+  }
+
+  function hideApiBanner() {
+    if (!el.apiBanner) return;
+    el.apiBanner.style.display = 'none';
+    el.apiBanner.textContent = '';
+  }
+
+  function setChatDisabled(disabled) {
+    el.sendBtn.disabled = disabled;
+    el.userInput.disabled = disabled;
+    if (el.voiceBtn) el.voiceBtn.disabled = disabled;
+  }
+
+  function parseJsonResponse(response) {
+    var ct = response.headers.get('content-type') || '';
+    if (ct.indexOf('application/json') === -1) {
+      return response.text().then(function (text) {
+        throw new Error(
+          response.status === 404
+            ? 'API not found. Run with: npx vercel dev (or deploy to Vercel).'
+            : 'Server returned non-JSON. Check deployment.'
+        );
+      });
+    }
+    return response.json().then(function (data) {
+      if (!response.ok) {
+        var msg = data.error || response.statusText || 'Request failed';
+        if (data.hint) msg += ' — ' + data.hint;
+        if (data.code === 'OPENAI_NOT_CONFIGURED') {
+          openaiReady = false;
+          showApiBanner(
+            'OpenAI API key missing. Add OPENAI_API_KEY in Vercel (or .env) and redeploy. Keys start with sk- or sk-proj-.',
+            true
+          );
+          setChatDisabled(true);
+        }
+        if (
+          data.code === 'ELEVENLABS_NOT_CONFIGURED' ||
+          data.code === 'ELEVENLABS_API_ERROR' ||
+          data.code === 'ELEVENLABS_REQUEST_FAILED'
+        ) {
+          openaiReady = false;
+          showApiBanner(
+            'ElevenLabs is required for spoken replies. Add ELEVENLABS_API_KEY (see .env.example). For local dev only, set ELEVENLABS_OPTIONAL=true.',
+            true
+          );
+          setChatDisabled(true);
+        }
+        throw new Error(msg);
+      }
+      return data;
+    });
+  }
+
+  function bootstrap() {
+    fetch(API_BASE + '/api/health', { method: 'GET' })
+      .then(parseJsonResponse)
+      .then(function (health) {
+        if (!health.text_chat_ready) {
+          openaiReady = false;
+          var missing = [];
+          if (!health.openai_configured) missing.push('OPENAI_API_KEY');
+          if (health.elevenlabs_required && !health.elevenlabs_configured) {
+            missing.push('ELEVENLABS_API_KEY');
+          }
+          showApiBanner(
+            'Required for Text Chat: ' + missing.join(', ') + '. Premium voice uses ElevenLabs (mandatory). For local dev without ElevenLabs, set ELEVENLABS_OPTIONAL=true.',
+            true
+          );
+          setChatDisabled(true);
+          setStatus('Configure environment variables (see .env.example).', true);
+        } else {
+          hideApiBanner();
+          openaiReady = true;
+          setChatDisabled(false);
+          startConversation();
+        }
+      })
+      .catch(function () {
+        showApiBanner(
+          'Could not reach /api/health. Run "npx vercel dev" or open your deployed Vercel URL (not file://).',
+          true
+        );
+        openaiReady = true;
+        setStatus('Trying to connect…');
+        startConversation();
+      });
   }
 
   function escapeHtml(str) {
@@ -84,13 +186,12 @@
         var audio = new Audio('data:audio/mpeg;base64,' + audioBase64);
         audio.playbackRate = 1.0;
         currentAudio = audio;
-        audio.play().catch(function(err) {
-          console.warn('Audio playback failed, falling back to browser TTS:', err);
+        audio.play().catch(function () {
           speakWithBrowserTTS(text);
         });
         return;
-      } catch (err) {
-        console.warn('Audio creation failed:', err);
+      } catch (e) {
+        // fall through
       }
     }
 
@@ -156,6 +257,8 @@
   }
 
   function startConversation() {
+    if (openaiReady === false) return;
+
     setStatus('Connecting…');
 
     fetch(API_BASE + '/api/chat-stream', {
@@ -168,34 +271,34 @@
         stream: false,
       }),
     })
-    .then(function(response) {
-      return response.json().then(function(data) {
-        if (!response.ok) {
-          throw new Error(data.error || response.statusText);
+      .then(function (res) {
+        return parseJsonResponse(res);
+      })
+      .then(function (data) {
+        if (data.sessionId) {
+          sessionId = data.sessionId;
+          localStorage.setItem(SESSION_KEY, sessionId);
         }
-        return data;
-      });
-    })
-    .then(function(data) {
-      if (data.sessionId) {
-        sessionId = data.sessionId;
-        localStorage.setItem(SESSION_KEY, sessionId);
-      }
 
-      appendMessage('assistant', data.reply);
-      setStatus(data.ttsProvider ? 'Ready (' + data.ttsProvider + ' voice)' : 'Ready. Type or use voice to respond.');
-      speakText(data.reply, data.audioBase64);
-    })
-    .catch(function(err) {
-      console.error('Start conversation error:', err);
-      appendMessage('assistant', 'Welcome to Riverwood Estate! How can I help you today?');
-      setStatus('Connected (limited mode)', true);
-      speakText('Welcome to Riverwood Estate! How can I help you today?');
-    });
+        appendMessage('assistant', data.reply);
+        setStatus(data.ttsProvider ? 'Ready (' + data.ttsProvider + ' voice)' : 'Ready. Type or tap Voice to speak.');
+        speakText(data.reply, data.audioBase64);
+      })
+      .catch(function (err) {
+        console.error('Start conversation error:', err);
+        appendMessage('assistant', 'I can’t reach the AI service right now. Check your API key and that you’re on Vercel (or run vercel dev).');
+        setStatus(err.message || 'Connection error', true);
+      });
+  }
+
+  function getAbortSignal() {
+    if (typeof AbortController === 'undefined') return undefined;
+    abortController = new AbortController();
+    return abortController.signal;
   }
 
   function sendMessageStreaming(text) {
-    if (isProcessing) return;
+    if (isProcessing || openaiReady === false) return;
 
     var message = (text !== undefined && text !== null ? String(text) : el.userInput.value || '').trim();
     if (!message) return;
@@ -211,7 +314,7 @@
     var audioBase64 = null;
     var ttsProvider = null;
 
-    abortController = new AbortController();
+    var signal = getAbortSignal();
 
     fetch(API_BASE + '/api/chat-stream', {
       method: 'POST',
@@ -222,77 +325,120 @@
         language: currentLang,
         stream: true,
       }),
-      signal: abortController.signal,
+      signal: signal,
     })
-    .then(function(response) {
-      if (!response.ok) {
-        return response.json().then(function(data) {
-          throw new Error(data.error || 'Request failed');
-        });
-      }
+      .then(function (response) {
+        if (!response.ok) {
+          return response.json().then(function (data) {
+            var msg = (data && data.error) ? data.error : response.statusText;
+            if (data && data.hint) msg += ' — ' + data.hint;
+            if (data && data.code === 'OPENAI_NOT_CONFIGURED') {
+              openaiReady = false;
+              showApiBanner(
+                'OpenAI API key missing. Add OPENAI_API_KEY in Vercel or .env and redeploy.',
+                true
+              );
+              setChatDisabled(true);
+            }
+            if (
+              data &&
+              (data.code === 'ELEVENLABS_NOT_CONFIGURED' ||
+                data.code === 'ELEVENLABS_API_ERROR' ||
+                data.code === 'ELEVENLABS_REQUEST_FAILED')
+            ) {
+              openaiReady = false;
+              showApiBanner(
+                'ElevenLabs is required for spoken replies. Add ELEVENLABS_API_KEY or set ELEVENLABS_OPTIONAL=true for local dev.',
+                true
+              );
+              setChatDisabled(true);
+            }
+            throw new Error(msg || 'Request failed');
+          });
+        }
 
-      var reader = response.body.getReader();
-      var decoder = new TextDecoder();
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
 
-      function readChunk() {
-        return reader.read().then(function(result) {
-          if (result.done) return;
+        function readChunk() {
+          return reader.read().then(function (result) {
+            if (result.done) return;
 
-          var chunk = decoder.decode(result.value);
-          var lines = chunk.split('\n');
+            var chunk = decoder.decode(result.value);
+            var lines = chunk.split('\n');
 
-          for (var i = 0; i < lines.length; i++) {
-            var line = lines[i];
-            if (line.indexOf('data: ') === 0) {
-              try {
-                var data = JSON.parse(line.slice(6));
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i];
+              if (line.indexOf('data: ') === 0) {
+                try {
+                  var data = JSON.parse(line.slice(6));
 
-                if (data.type === 'session' && data.sessionId) {
-                  sessionId = data.sessionId;
-                  localStorage.setItem(SESSION_KEY, sessionId);
-                } else if (data.type === 'token' && data.content) {
-                  fullReply += data.content;
-                  updateMessageContent(loadingRow, fullReply);
+                  if (data.type === 'session' && data.sessionId) {
+                    sessionId = data.sessionId;
+                    localStorage.setItem(SESSION_KEY, sessionId);
+                  } else if (data.type === 'token' && data.content) {
+                    fullReply += data.content;
+                    updateMessageContent(loadingRow, fullReply);
                 } else if (data.type === 'done') {
                   fullReply = data.fullReply || fullReply;
                   audioBase64 = data.audioBase64 || null;
                   ttsProvider = data.ttsProvider || null;
+                  if (data.ttsError) {
+                    setStatus('Reply ready; ElevenLabs error: ' + (data.ttsHint || data.ttsError), true);
+                  }
                 }
-              } catch (e) {}
+                } catch (e) {
+                  // incomplete SSE chunk
+                }
+              }
             }
-          }
 
-          return readChunk();
-        });
-      }
+            return readChunk();
+          });
+        }
 
-      return readChunk();
-    })
-    .then(function() {
-      updateMessageContent(loadingRow, fullReply);
-      setStatus(ttsProvider ? 'Ready (' + ttsProvider + ' voice)' : 'Ready.');
-      speakText(fullReply, audioBase64);
-    })
-    .catch(function(err) {
-      if (err.name === 'AbortError') {
-        updateMessageContent(loadingRow, 'Response cancelled.');
-        setStatus('Cancelled.');
-      } else {
-        console.error('Send message error:', err);
-        updateMessageContent(loadingRow, 'Sorry, I couldn\'t respond. Please try again.');
-        setStatus(err.message || 'Connection error', true);
-      }
-    })
-    .finally(function() {
-      setProcessing(false);
-      abortController = null;
-    });
+        return readChunk();
+      })
+      .then(function () {
+        updateMessageContent(loadingRow, fullReply);
+        setStatus(ttsProvider ? 'Ready (' + ttsProvider + ' voice)' : 'Ready.');
+        speakText(fullReply, audioBase64);
+      })
+      .catch(function (err) {
+        if (err.name === 'AbortError') {
+          updateMessageContent(loadingRow, 'Cancelled.');
+          setStatus('Cancelled.');
+        } else {
+          console.error('Send message error:', err);
+          updateMessageContent(loadingRow, 'Sorry, I couldn’t respond. Please try again.');
+          setStatus(err.message || 'Connection error', true);
+        }
+      })
+      .then(function () {
+        setProcessing(false);
+        abortController = null;
+      });
   }
 
   function setProcessing(processing) {
     isProcessing = processing;
-    el.sendBtn.disabled = processing;
-    if (el.voiceBtn) el.voiceBtn.disabled = processing;
+    var block = processing || openaiReady === false;
+    el.sendBtn.disabled = block;
+    el.userInput.disabled = block;
+    if (el.voiceBtn) el.voiceBtn.disabled = block || isRecording;
+  }
+
+  function stopRecording() {
+    isRecording = false;
+    if (recognition) {
+      try {
+        recognition.stop();
+      } catch (e) {}
+    }
+    if (el.voiceBtn) {
+      el.voiceBtn.classList.remove('recording');
+      el.voiceBtn.setAttribute('aria-pressed', 'false');
+    }
   }
 
   function initSpeechRecognition() {
@@ -307,84 +453,88 @@
     recognition.interimResults = true;
     recognition.lang = getSpeechLang();
 
-    recognition.onresult = function(event) {
+    recognition.onresult = function (event) {
       var result = event.results[event.results.length - 1];
       if (result.isFinal) {
-        var transcript = result[0].transcript;
+        var transcript = (result[0] && result[0].transcript) ? result[0].transcript.trim() : '';
+        stopRecording();
         if (transcript) sendMessageStreaming(transcript);
-      } else {
+      } else if (result[0]) {
         el.userInput.value = result[0].transcript;
       }
     };
 
-    recognition.onerror = function() {
-      if (el.voiceBtn) el.voiceBtn.classList.remove('recording');
-      setStatus('Voice input ended.');
+    recognition.onerror = function (ev) {
+      stopRecording();
+      var code = ev && ev.error ? ev.error : '';
+      if (code === 'not-allowed') {
+        setStatus('Microphone blocked. Allow mic in browser settings.', true);
+      } else if (code !== 'aborted' && code !== 'no-speech') {
+        setStatus('Voice error: ' + code + '. Try typing instead.', true);
+      } else {
+        setStatus('Tap Voice again to speak.');
+      }
     };
 
-    recognition.onend = function() {
+    recognition.onend = function () {
+      isRecording = false;
       if (el.voiceBtn) {
         el.voiceBtn.classList.remove('recording');
         el.voiceBtn.setAttribute('aria-pressed', 'false');
       }
     };
+
+    el.voiceBtn.addEventListener('click', function () {
+      if (!recognition || isProcessing || openaiReady === false) return;
+
+      if (isRecording) {
+        stopRecording();
+        setStatus('Processing…');
+        return;
+      }
+
+      try {
+        recognition.lang = getSpeechLang();
+        isRecording = true;
+        el.voiceBtn.classList.add('recording');
+        el.voiceBtn.setAttribute('aria-pressed', 'true');
+        setStatus('Listening… tap Voice again when finished.');
+        recognition.start();
+      } catch (e) {
+        isRecording = false;
+        setStatus('Voice not available in this browser.', true);
+      }
+    });
   }
 
-  el.sendBtn.addEventListener('click', function() { sendMessageStreaming(); });
+  el.sendBtn.addEventListener('click', function () {
+    sendMessageStreaming();
+  });
 
-  el.userInput.addEventListener('keydown', function(e) {
+  el.userInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessageStreaming();
     }
   });
 
-  if (el.voiceBtn) {
-    el.voiceBtn.addEventListener('mousedown', function() {
-      if (!recognition || isProcessing) return;
-      recognition.lang = getSpeechLang();
-      el.voiceBtn.classList.add('recording');
-      el.voiceBtn.setAttribute('aria-pressed', 'true');
-      setStatus('Listening…');
-      try {
-        recognition.start();
-      } catch (e) {
-        setStatus('Voice not available.');
-      }
-    });
-
-    el.voiceBtn.addEventListener('mouseup', function() {
-      if (recognition) {
-        try { recognition.stop(); } catch (e) {}
-      }
-      el.voiceBtn.setAttribute('aria-pressed', 'false');
-    });
-
-    el.voiceBtn.addEventListener('mouseleave', function() {
-      if (recognition) {
-        try { recognition.stop(); } catch (e) {}
-      }
-      el.voiceBtn.setAttribute('aria-pressed', 'false');
-    });
-  }
-
   if (el.langBtns && el.langBtns.length) {
-    el.langBtns.forEach(function(btn) {
+    el.langBtns.forEach(function (btn) {
       var lang = btn.getAttribute('data-lang');
       var isActive = lang === currentLang;
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
 
-    el.langBtns.forEach(function(btn) {
-      btn.addEventListener('click', function() {
+    el.langBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
         var lang = btn.getAttribute('data-lang');
         if (!lang || lang === currentLang) return;
 
         currentLang = lang;
         localStorage.setItem(LANG_KEY, currentLang);
 
-        el.langBtns.forEach(function(b) {
+        el.langBtns.forEach(function (b) {
           var active = b.getAttribute('data-lang') === currentLang;
           b.classList.toggle('active', active);
           b.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -398,18 +548,19 @@
         sessionId = generateSessionId();
         localStorage.setItem(SESSION_KEY, sessionId);
         el.conversation.innerHTML = '';
-        startConversation();
+        if (openaiReady !== false) startConversation();
       });
     });
   }
 
   if (window.speechSynthesis) {
     window.speechSynthesis.getVoices();
-    window.speechSynthesis.onvoiceschanged = function() {
+    window.speechSynthesis.onvoiceschanged = function () {
       window.speechSynthesis.getVoices();
     };
   }
 
   initSpeechRecognition();
-  startConversation();
+  bootstrap();
 })();
+
