@@ -223,8 +223,6 @@
     el.callBtn.disabled = true;
     el.transcript.innerHTML = '';
 
-    var callConfig;
-
     function onStartFail(err) {
       console.error('Failed to start call:', err);
       el.callBtn.disabled = false;
@@ -237,9 +235,16 @@
       );
     }
 
-    function startWithConfig(config, allowModelRetry) {
+    function startWithConfig(assistantOrId, allowModelRetry, overrides) {
       try {
-        var started = vapi.start(config);
+        var started;
+        if (typeof assistantOrId === 'string') {
+          // assistantId mode: pass ID as first arg, overrides as second
+          started = vapi.start(assistantOrId, overrides || undefined);
+        } else {
+          // inline assistant mode: pass assistant config directly
+          started = vapi.start(assistantOrId);
+        }
         if (started && typeof started.then === 'function') {
           started.catch(function (err) {
             var msg = formatVapiError(err) || '';
@@ -250,17 +255,15 @@
             if (
               allowModelRetry &&
               looksLike400 &&
-              config.assistantOverrides &&
-              config.assistantOverrides.model &&
+              overrides &&
+              overrides.model &&
               VAPI_ASSISTANT_ID
             ) {
               console.warn('Riverwood: VAPI returned 400 — retrying with firstMessage-only overrides (dashboard prompt will apply).');
               startWithConfig(
-                {
-                  assistantId: String(VAPI_ASSISTANT_ID).trim(),
-                  assistantOverrides: { firstMessage: getFirstMessage() },
-                },
-                false
+                String(VAPI_ASSISTANT_ID).trim(),
+                false,
+                { firstMessage: getFirstMessage() }
               );
               return;
             }
@@ -276,15 +279,9 @@
     }
 
     if (VAPI_ASSISTANT_ID) {
-      startWithConfig(
-        {
-          assistantId: String(VAPI_ASSISTANT_ID).trim(),
-          assistantOverrides: buildAssistantOverrides(),
-        },
-        true
-      );
+      startWithConfig(String(VAPI_ASSISTANT_ID).trim(), true, buildAssistantOverrides());
     } else {
-      startWithConfig({ assistant: buildInlineAssistant() }, false);
+      startWithConfig(buildInlineAssistant(), false);
     }
   }
 
