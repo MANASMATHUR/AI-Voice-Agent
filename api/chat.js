@@ -3,8 +3,8 @@ import {
   getConversation,
   saveConversation,
   incrementRateLimit,
-} from './lib/redis.js';
-import { getCachedResponse, setCachedResponse } from './lib/cache.js';
+} from './_lib/redis.js';
+import { getCachedResponse, setCachedResponse } from './_lib/cache.js';
 
 const MAX_CONTEXT_MESSAGES = 20;
 const MAX_COMPLETION_TOKENS = 150;

@@ -5,10 +5,10 @@ import {
   appendMessage,
   incrementRateLimit,
   saveSessionMetadata,
-} from './lib/redis.js';
-import { getCachedResponse, setCachedResponse } from './lib/cache.js';
-import { generateSpeech } from './lib/tts.js';
-import { getVoiceSystemPrompt } from './lib/voice-prompt.js';
+} from './_lib/redis.js';
+import { getCachedResponse, setCachedResponse } from './_lib/cache.js';
+import { generateSpeech } from './_lib/tts.js';
+import { getVoiceSystemPrompt } from './_lib/voice-prompt.js';
 
 const MAX_CONTEXT_MESSAGES = 20;
 const MAX_COMPLETION_TOKENS = 200;

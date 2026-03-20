@@ -1,15 +1,13 @@
 import {
-  getConversation,
   saveConversation,
-  appendMessage,
   saveSessionMetadata,
-} from '../lib/redis.js';
+} from '../_lib/redis.js';
 import {
   getProjectSummary,
   getLocationBenefits,
   getRandomConstructionUpdate,
   RIVERWOOD_KNOWLEDGE,
-} from '../lib/knowledge.js';
+} from '../_lib/knowledge.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -223,7 +221,7 @@ async function handleStatusUpdate(message, res) {
 }
 
 async function handleAssistantRequest(message, res) {
-  const { getVoiceSystemPrompt, getFirstMessage, getToolDefinitions } = await import('../lib/voice-prompt.js');
+  const { getVoiceSystemPrompt, getFirstMessage, getToolDefinitions } = await import('../_lib/voice-prompt.js');
 
   const customerNumber = message.call?.customer?.number || '';
   const lang = detectLanguageFromNumber(customerNumber);
