@@ -108,9 +108,3 @@ Set `VAPI_ASSISTANT_ID` to your assistant UUID (e.g. from the Assistants list). 
 - **Rate limiting:** Per session (see `api/_lib/redis.js`)
 - **Response caching:** Common greetings / FAQs (`api/_lib/cache.js`)
 - **Languages:** English, Hindi (Devanagari), Marathi (Devanagari)
-
----
-
-## License / use
-
-Built for the Riverwood Projects LLP internship challenge.
