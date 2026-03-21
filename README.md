@@ -64,6 +64,8 @@ Open **http://localhost:3000** (or your `PORT`).
 
 Set `VAPI_ASSISTANT_ID` to your assistant UUID (e.g. from the Assistants list). The app auto-retries once with **`firstMessage` only** if the first start looks like a 400.
 
+**Dashboard vs inline voice/STT:** When `VAPI_ASSISTANT_ID` is set, the browser sends **minimal** `assistantOverrides` (`firstMessage` + `model` only) so `POST …/call/web` stays valid — **ElevenLabs voice and transcriber/STT** (including multilingual or Flux language) must be tuned in the **VAPI dashboard** for that assistant. If you omit `VAPI_ASSISTANT_ID`, the app uses an **inline assistant** from `js/agent-vapi.js` with full `voice` + `transcriber` blocks for local/dev tuning without changing dashboard settings.
+
 ---
 
 ## API endpoints

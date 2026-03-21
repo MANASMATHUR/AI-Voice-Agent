@@ -198,6 +198,8 @@ $0.05/min (higher per-minute cost, but includes STT + orchestration)
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**Assistant ID path:** With `VAPI_ASSISTANT_ID`, the Web SDK start payload keeps **voice and transcriber** on the saved VAPI assistant (dashboard). Client code only merges `firstMessage` + `model` overrides to avoid validation errors on `/call/web`. For production timbre and **en / hi / mr** STT, configure **ElevenLabs** and the transcriber (e.g. Deepgram / Flux language) in the dashboard. **No assistant ID:** `buildInlineAssistant()` in `agent-vapi.js` supplies inline `voice` + `transcriber` for dev.
+
 ### Voice Realism Features (70% of evaluation)
 
 1. **Natural filler words**: System prompt instructs LLM to use "So...", "Hmm...", "Actually..."
