@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Voice Agent - Live Call</title>
-  <meta name="description" content="Real-time AI voice agent for Riverwood Estate. Have a natural voice conversation." />
+  <title>Riverwood Estate · Call Priya</title>
+  <meta name="description" content="Speak with Priya about Riverwood Estate — site visits, project updates, and questions in English, Hindi, or Marathi." />
   <link rel="stylesheet" href="css/style.css" />
   <style>
     /* VAPI Voice Call UI */
@@ -60,8 +60,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 2.5rem;
+      font-size: 1.125rem;
+      font-weight: 600;
+      font-family: var(--font-heading);
+      color: var(--text);
       transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .call-avatar__initials {
+      letter-spacing: 0.02em;
     }
 
     .call-avatar.speaking {
@@ -116,16 +123,34 @@
     }
 
     .call-btn {
-      width: 72px;
-      height: 72px;
-      border-radius: 50%;
+      min-width: 100px;
+      padding: 0.6rem 0.85rem 0.5rem;
+      border-radius: var(--radius);
       border: none;
-      font-size: 1.75rem;
+      font-size: 1.25rem;
       cursor: pointer;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 0.25rem;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .call-btn__glyph {
+      line-height: 1;
+      font-size: 1.35rem;
+    }
+
+    .call-btn__label {
+      font-family: var(--font-sans);
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      max-width: 88px;
+      text-align: center;
+      line-height: 1.2;
     }
 
     .call-btn:active {
@@ -157,12 +182,16 @@
     }
 
     .call-btn.mute {
-      width: 52px;
-      height: 52px;
-      font-size: 1.25rem;
+      min-width: 72px;
+      padding: 0.45rem 0.5rem 0.35rem;
+      font-size: 1rem;
       background: var(--surface);
       color: var(--text);
       border: 1px solid var(--border);
+    }
+
+    .call-btn.mute .call-btn__label {
+      font-size: 0.6rem;
     }
 
     .call-btn.mute.muted {
@@ -177,21 +206,56 @@
       align-items: center;
     }
 
+    .transcript-panel {
+      margin-top: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .transcript-panel__header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem 1rem;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+    }
+
+    .transcript-panel__title {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+
+    .transcript-lang-badge {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 0.2rem 0.55rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg);
+    }
+
     .transcript-area {
       min-height: 180px;
       max-height: 280px;
       overflow-y: auto;
       padding: 1rem;
       background: var(--bg);
-      border-radius: var(--radius);
+      border-radius: 0;
       font-size: 0.9375rem;
       line-height: 1.55;
       scroll-behavior: smooth;
-      margin-top: 1rem;
+      margin-top: 0;
     }
 
     .transcript-area:empty::after {
-      content: 'Transcript will appear here during the call...';
+      content: attr(data-placeholder);
       display: block;
       color: var(--text-muted);
       font-size: 0.875rem;
@@ -286,8 +350,8 @@
 
   <div class="page-agent">
     <a href="index.html" class="back">&larr; Back</a>
-    <h2>Voice Agent</h2>
-    <p class="tagline">Have a natural voice conversation with Priya, your Riverwood Estate assistant.</p>
+    <h2>Talk with Priya</h2>
+    <p class="tagline">Ask about Riverwood Estate, hear construction updates, or plan a site visit. Your microphone is used only during an active call.</p>
 
     <div class="mode-toggle" role="group" aria-label="Interaction mode">
       <a href="agent.html" class="mode-btn">Text Chat</a>
@@ -301,15 +365,20 @@
     </div>
 
     <div id="config-warning" class="config-note" style="display:none;">
-      <strong>Required stack:</strong> <code>VAPI_PUBLIC_KEY</code> (+ <code>VAPI_ASSISTANT_ID</code>) for this page. In the <strong>VAPI dashboard</strong>, set the assistant voice provider to <strong>ElevenLabs</strong> and LLM to <strong>OpenAI</strong>. For <strong>Text Chat</strong>, this deployment also needs <code>ELEVENLABS_API_KEY</code> (mandatory unless <code>ELEVENLABS_OPTIONAL=true</code>).
+      <strong>Voice calls aren’t available on this site yet.</strong>
+      <p style="margin:0.5rem 0 0;font-size:0.8125rem;opacity:0.95;">This page needs to be connected by your team before you can speak with Priya here.</p>
+      <details style="margin-top:0.65rem;">
+        <summary style="cursor:pointer;font-weight:600;">Technical details</summary>
+        <p style="margin:0.5rem 0 0;font-size:0.75rem;line-height:1.5;">Set <code>VAPI_PUBLIC_KEY</code> and <code>VAPI_ASSISTANT_ID</code>. In the VAPI dashboard, use <strong>ElevenLabs</strong> for voice and <strong>OpenAI</strong> for the model. Text chat on this deployment also expects <code>ELEVENLABS_API_KEY</code> unless <code>ELEVENLABS_OPTIONAL=true</code> for local development.</p>
+      </details>
     </div>
 
     <div class="agent-card">
-      <h3>Live Voice Call</h3>
+      <h3>Your conversation</h3>
 
       <div class="call-controls">
-        <div id="call-avatar" class="call-avatar" aria-hidden="true">P</div>
-        <div class="call-name">Priya</div>
+        <div id="call-avatar" class="call-avatar" aria-hidden="true"><span class="call-avatar__initials">Pri</span></div>
+        <div class="call-name">Priya · Riverwood Estate</div>
         <div id="call-status" class="call-status">Ready to call</div>
         <div id="call-timer" class="call-timer"></div>
 
@@ -322,12 +391,24 @@
         </div>
 
         <div class="call-actions">
-          <button type="button" id="mute-btn" class="call-btn mute" title="Mute" style="display:none;" aria-label="Toggle mute">M</button>
-          <button type="button" id="call-btn" class="call-btn start" title="Start Call" aria-label="Start voice call">C</button>
+          <button type="button" id="mute-btn" class="call-btn mute" style="display:none;" aria-label="Mute microphone">
+            <span class="call-btn__glyph" aria-hidden="true">&#x1F507;</span>
+            <span class="call-btn__label">Mute</span>
+          </button>
+          <button type="button" id="call-btn" class="call-btn call-btn--primary start" aria-label="Start call with Priya">
+            <span class="call-btn__glyph" aria-hidden="true">&#x260E;</span>
+            <span class="call-btn__label">Start call</span>
+          </button>
         </div>
       </div>
 
-      <div id="transcript" class="transcript-area" role="log" aria-live="polite" aria-label="Call transcript"></div>
+      <div class="transcript-panel">
+        <div class="transcript-panel__header">
+          <span id="transcript-panel-title" class="transcript-panel__title"></span>
+          <span id="transcript-lang-display" class="transcript-lang-badge"></span>
+        </div>
+        <div id="transcript" class="transcript-area" role="log" aria-live="polite" aria-label=""></div>
+      </div>
     </div>
 
     <p id="footer-status" class="status" aria-live="polite" aria-atomic="true"></p>
