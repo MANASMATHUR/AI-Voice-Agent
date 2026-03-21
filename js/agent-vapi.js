@@ -7,6 +7,110 @@
 
   var currentLang = localStorage.getItem(LANG_KEY) || 'en';
 
+  var UI_STRINGS = {
+    en: {
+      ready: 'Ready to call',
+      connecting: 'Connecting…',
+      connected: 'Connected',
+      callActive: 'You’re live with Priya — speak naturally.',
+      callEnded: 'Call ended',
+      callEndedDot: 'Call ended. Thank you for your time.',
+      callError: 'Something went wrong',
+      listening: 'Listening…',
+      speaking: 'Priya is speaking…',
+      youSpeaking: 'You’re speaking…',
+      failedConnect: 'Couldn’t connect',
+      endCallFirst: 'End the call before changing language.',
+      you: 'You',
+      priya: 'Priya',
+      transcriptTitle: 'Your conversation',
+      transcriptPlaceholder: 'You’ll see your conversation here.',
+      transcriptAriaPrefix: 'Conversation transcript',
+      startCall: 'Start call',
+      endCall: 'End call',
+      mute: 'Mute',
+      unmute: 'Unmute',
+      languageSelected_en: 'Conversation language: English. Priya will reply in English.',
+      languageSelected_hi: 'Conversation language: Hindi (हिन्दी). Priya will reply in Hindi.',
+      languageSelected_mr: 'Conversation language: Marathi (मराठी). Priya will reply in Marathi.',
+      sdkLoadError: 'We couldn’t load the calling experience. Check your connection and refresh the page.',
+      setupRequiredShort: 'Voice calls aren’t set up on this deployment yet.',
+      tryAgainHint: 'Please try again in a moment.',
+      genericCallError: 'Something went wrong. Please try again.',
+    },
+    hi: {
+      ready: 'कॉल के लिए तैयार',
+      connecting: 'कनेक्ट हो रहा है…',
+      connected: 'कनेक्ट हो गया',
+      callActive: 'आप प्रिया से जुड़े हुए हैं — स्वाभाविक रूप से बोलें।',
+      callEnded: 'कॉल समाप्त',
+      callEndedDot: 'कॉल समाप्त। आपका धन्यवाद।',
+      callError: 'कुछ गलत हो गया',
+      listening: 'सुन रहे हैं…',
+      speaking: 'प्रिया बोल रही हैं…',
+      youSpeaking: 'आप बोल रहे हैं…',
+      failedConnect: 'कनेक्ट नहीं हो सका',
+      endCallFirst: 'भाषा बदलने से पहले कॉल समाप्त करें।',
+      you: 'आप',
+      priya: 'प्रिया',
+      transcriptTitle: 'आपकी बातचीत',
+      transcriptPlaceholder: 'यहाँ आपकी बातचीत दिखाई देगी।',
+      transcriptAriaPrefix: 'बातचीत का ट्रांसक्रिप्ट',
+      startCall: 'कॉल शुरू करें',
+      endCall: 'कॉल खत्म करें',
+      mute: 'म्यूट',
+      unmute: 'अनम्यूट',
+      languageSelected_en: 'बातचीत की भाषा: अंग्रेज़ी। प्रिया अंग्रेज़ी में जवाब देंगी।',
+      languageSelected_hi: 'बातचीत की भाषा: हिन्दी। प्रिया हिन्दी में जवाब देंगी।',
+      languageSelected_mr: 'बातचीत की भाषा: मराठी। प्रिया मराठी में जवाब देंगी।',
+      sdkLoadError: 'कॉलिंग लोड नहीं हो सका। कनेक्शन जाँचें और पेज रिफ्रेश करें।',
+      setupRequiredShort: 'इस साइट पर अभी वॉइस कॉल सेट नहीं है।',
+      tryAgainHint: 'कृपया थोड़ी देर बाद फिर कोशिश करें।',
+      genericCallError: 'कुछ गलत हो गया। कृपया फिर कोशिश करें।',
+    },
+    mr: {
+      ready: 'कॉलसाठी तयार',
+      connecting: 'कनेक्ट होत आहे…',
+      connected: 'कनेक्ट झाले',
+      callActive: 'तुम्ही प्रियाशी जोडलेले आहात — सहज बोला.',
+      callEnded: 'कॉल संपला',
+      callEndedDot: 'कॉल संपला. धन्यवाद.',
+      callError: 'काहीतरी चूक झाली',
+      listening: 'ऐकत आहे…',
+      speaking: 'प्रिया बोलत आहे…',
+      youSpeaking: 'तुम्ही बोलत आहात…',
+      failedConnect: 'कनेक्ट होऊ शकले नाही',
+      endCallFirst: 'भाषा बदलण्यापूर्वी कॉल संपवा.',
+      you: 'तुम्ही',
+      priya: 'प्रिया',
+      transcriptTitle: 'तुमचा संवाद',
+      transcriptPlaceholder: 'येथे तुमचा संवाद दिसेल.',
+      transcriptAriaPrefix: 'संवादाचा ट्रान्सक्रिप्ट',
+      startCall: 'कॉल सुरू करा',
+      endCall: 'कॉल संपवा',
+      mute: 'आवाज बंद',
+      unmute: 'आवाज सुरू',
+      languageSelected_en: 'संवादाची भाषा: इंग्रजी. प्रिया इंग्रजीत उत्तर देईल.',
+      languageSelected_hi: 'संवादाची भाषा: हिंदी. प्रिया हिंदीत उत्तर देईल.',
+      languageSelected_mr: 'संवादाची भाषा: मराठी. प्रिया मराठीत उत्तर देईल.',
+      sdkLoadError: 'कॉल अनुभव लोड होऊ शकला नाही. कनेक्शन तपासा आणि पृष्ठ रिफ्रेश करा.',
+      setupRequiredShort: 'या साइटवर अद्याप व्हॉइस कॉल सेट नाहीत.',
+      tryAgainHint: 'कृपया थोड्या वेळाने पुन्हा प्रयत्न करा.',
+      genericCallError: 'काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.',
+    },
+  };
+
+  function t(key) {
+    return (UI_STRINGS[currentLang] || UI_STRINGS.en)[key] || UI_STRINGS.en[key] || key;
+  }
+
+  /** Conversation-language chip (not UI locale): what Priya will use for STT/TTS. */
+  function getConversationLangBadge() {
+    if (currentLang === 'hi') return 'हिन्दी · HI';
+    if (currentLang === 'mr') return 'मराठी · MR';
+    return 'English · EN';
+  }
+
   var vapi = null;
   var callActive = false;
   var isMuted = false;
@@ -20,6 +124,8 @@
     callStatus: document.getElementById('call-status'),
     callTimer: document.getElementById('call-timer'),
     transcript: document.getElementById('transcript'),
+    transcriptPanelTitle: document.getElementById('transcript-panel-title'),
+    transcriptLangDisplay: document.getElementById('transcript-lang-display'),
     volumeIndicator: document.getElementById('volume-indicator'),
     volumeBars: document.querySelectorAll('.volume-bar'),
     langBtns: document.querySelectorAll('.lang-btn'),
@@ -45,14 +151,15 @@
       } catch (e) {}
     }
 
+    updateTranscriptLanguageUI();
     initLanguageToggle();
 
     if (!VAPI_PUBLIC_KEY) {
       showConfigWarning(true);
       el.callBtn.disabled = true;
-      setStatus(
-        'Required: set VAPI_PUBLIC_KEY (and VAPI_ASSISTANT_ID) in Vercel env. In VAPI dashboard, use ElevenLabs for voice and OpenAI for the model.',
-        true
+      setStatus(t('setupRequiredShort'), true);
+      console.error(
+        'Riverwood voice: set VAPI_PUBLIC_KEY and VAPI_ASSISTANT_ID in environment. Dashboard: ElevenLabs + OpenAI.'
       );
       return;
     }
@@ -82,7 +189,7 @@
   function initVapi() {
     var VapiCtor = getVapiConstructor();
     if (!VapiCtor) {
-      setStatus('VAPI SDK failed to load. Check your connection.', true);
+      setStatus(t('sdkLoadError'), true);
       el.callBtn.disabled = true;
       return;
     }
@@ -94,32 +201,39 @@
       callStartTime = Date.now();
       startTimer();
 
-      el.callBtn.className = 'call-btn end';
-      el.callBtn.title = 'End Call';
-      el.callBtn.setAttribute('aria-label', 'End voice call');
-      if (el.muteBtn) el.muteBtn.style.display = '';
+      el.callBtn.className = 'call-btn call-btn--primary end';
+      el.callBtn.title = t('endCall');
+      el.callBtn.setAttribute('aria-label', t('endCall'));
+      updateCallButtonLabel(true);
+      if (el.muteBtn) {
+        el.muteBtn.style.display = '';
+        var ml = el.muteBtn.querySelector('.call-btn__label');
+        if (ml) ml.textContent = t('mute');
+        el.muteBtn.setAttribute('aria-label', t('mute'));
+        el.muteBtn.title = t('mute');
+      }
       if (el.volumeIndicator) el.volumeIndicator.style.display = 'flex';
       el.callAvatar.classList.remove('speaking', 'listening');
 
-      setCallStatus('Connected', true);
-      setStatus('Call active. Speak naturally.');
+      setCallStatus(t('connected'), true);
+      setStatus(t('callActive'));
     });
 
     vapi.on('call-end', function () {
       endCallUI();
-      setCallStatus('Call ended');
-      setStatus('Call ended.');
+      setCallStatus(t('callEnded'));
+      setStatus(t('callEndedDot'));
     });
 
     vapi.on('speech-start', function () {
       el.callAvatar.classList.add('speaking');
       el.callAvatar.classList.remove('listening');
-      setCallStatus('Priya is speaking...', true);
+      setCallStatus(t('speaking'), true);
     });
 
     vapi.on('speech-end', function () {
       el.callAvatar.classList.remove('speaking');
-      setCallStatus('Listening...', true);
+      setCallStatus(t('listening'), true);
     });
 
     vapi.on('message', function (message) {
@@ -133,8 +247,9 @@
     vapi.on('error', function (error) {
       console.error('VAPI error:', error);
       endCallUI();
-      setCallStatus('Call error');
-      setStatus('Error: ' + formatVapiError(error), true);
+      setCallStatus(t('callError'));
+      setStatus(t('genericCallError') + ' ' + t('tryAgainHint'), true);
+      console.error('VAPI error detail:', formatVapiError(error), error);
     });
 
     el.callBtn.addEventListener('click', function () {
@@ -150,11 +265,15 @@
         isMuted = !isMuted;
         vapi.setMuted(isMuted);
         el.muteBtn.classList.toggle('muted', isMuted);
-        el.muteBtn.title = isMuted ? 'Unmute' : 'Mute';
+        el.muteBtn.title = isMuted ? t('unmute') : t('mute');
+        el.muteBtn.setAttribute('aria-label', isMuted ? t('unmute') : t('mute'));
+        var muteLbl = el.muteBtn.querySelector('.call-btn__label');
+        if (muteLbl) muteLbl.textContent = isMuted ? t('unmute') : t('mute');
       });
     }
 
-    setCallStatus('Ready to call');
+    setCallStatus(t('ready'));
+    updateCallButtonLabel(false);
   }
 
   /**
@@ -203,7 +322,7 @@
       return null;
     }
 
-    if (!error) return 'Connection failed';
+    if (!error) return t('genericCallError');
     if (typeof error === 'string') return error;
 
     var top = dig(error, 0);
@@ -212,27 +331,44 @@
     try {
       return JSON.stringify(error).slice(0, 400);
     } catch (e2) {
-      return 'Connection failed (see browser console for details).';
+      return t('genericCallError');
     }
+  }
+
+  function updateCallButtonLabel(isEnd) {
+    var label = el.callBtn && el.callBtn.querySelector('.call-btn__label');
+    if (label) label.textContent = isEnd ? t('endCall') : t('startCall');
+  }
+
+  function updateTranscriptLanguageUI() {
+    if (el.transcriptPanelTitle) {
+      el.transcriptPanelTitle.textContent = t('transcriptTitle');
+    }
+    if (el.transcriptLangDisplay) {
+      el.transcriptLangDisplay.textContent = getConversationLangBadge();
+    }
+    if (el.transcript) {
+      el.transcript.setAttribute('data-placeholder', t('transcriptPlaceholder'));
+      el.transcript.setAttribute(
+        'aria-label',
+        t('transcriptAriaPrefix') + ' · ' + getConversationLangBadge()
+      );
+    }
+    document.documentElement.lang = currentLang === 'en' ? 'en' : currentLang;
   }
 
   function startCall() {
     if (!vapi || callActive) return;
 
-    setCallStatus('Connecting...');
+    setCallStatus(t('connecting'));
     el.callBtn.disabled = true;
     el.transcript.innerHTML = '';
 
     function onStartFail(err) {
-      console.error('Failed to start call:', err);
+      console.error('Riverwood VAPI start failed:', formatVapiError(err), err);
       el.callBtn.disabled = false;
-      setCallStatus('Failed to connect');
-      setStatus(
-        'Could not start call: ' +
-          formatVapiError(err) +
-          '. Confirm VAPI assistant uses OpenAI + ElevenLabs, and VAPI_ASSISTANT_ID matches your dashboard.',
-        true
-      );
+      setCallStatus(t('failedConnect'));
+      setStatus(t('failedConnect') + '. ' + t('tryAgainHint'), true);
     }
 
     function startWithConfig(assistantOrId, allowModelRetry, overrides) {
@@ -295,9 +431,10 @@
     isMuted = false;
     stopTimer();
 
-    el.callBtn.className = 'call-btn start';
-    el.callBtn.title = 'Start Call';
-    el.callBtn.setAttribute('aria-label', 'Start voice call');
+    el.callBtn.className = 'call-btn call-btn--primary start';
+    el.callBtn.title = t('startCall');
+    el.callBtn.setAttribute('aria-label', t('startCall'));
+    updateCallButtonLabel(false);
     el.callBtn.disabled = false;
     if (el.muteBtn) {
       el.muteBtn.style.display = 'none';
@@ -351,9 +488,9 @@
       voice: {
         provider: '11labs',
         voiceId: getVoiceId(),
-        stability: 0.48,
+        stability: 0.45,
         similarityBoost: 0.8,
-        style: 0.42,
+        style: 0.46,
         useSpeakerBoost: true,
         optimizeStreamingLatency: 2,
         model: currentLang === 'en' ? 'eleven_turbo_v2_5' : 'eleven_multilingual_v2',
@@ -369,20 +506,21 @@
       firstMessage: getFirstMessage(),
       silenceTimeoutSeconds: 30,
       maxDurationSeconds: 600,
-      responseDelaySeconds: 0.65,
-      llmRequestDelaySeconds: 0.45,
+      responseDelaySeconds: 0.72,
+      llmRequestDelaySeconds: 0.52,
       numWordsToInterruptAssistant: 2,
       interruptionsEnabled: true,
     };
   }
 
   function getSystemPromptForLang() {
-    var base = 'You are Priya, a warm voice agent for Riverwood Estate. PRIMARY GOAL: sound like a real human on a phone call (~70% of evaluation: voice realism).\n\n'
-      + 'Every word is spoken aloud via TTS. Write SPOKEN English -- not brochure text.\n\n'
-      + 'THINKING TIME: Often pause before the answer: "Hmm, let me put it this way...", "Oh, good question... give me a second...", "Right, so... what I\'d say is...". Use "I mean...", "honestly...", "look..."\n\n'
-      + 'FILLERS (required almost every turn): So..., Well..., Okay..., Yeah..., Um..., You know..., Actually..., Right right..., Mm-hmm..., Totally...\n\n'
-      + 'PAUSES: Use "..." and commas before facts: "It\'s... fifteen and a half acres, licensed under DDJAY." Mid-thought: "Kharkhauda -- and this is the exciting bit -- is next to the IMT hub."\n\n'
-      + 'FLOW: React to their tone in one short phrase first. Use their words back. End with ONE gentle open question. 2-3 short sentences max.\n\n'
+    var base = 'You are Priya, a warm voice agent for Riverwood Estate calling real customers. Your main job is to sound like a real person on the phone — not a brochure or chatbot.\n\n'
+      + 'Every word is spoken aloud via TTS. Write how people TALK: short beats, uneven rhythm, one genuine emotional note per turn (relief, warmth, curiosity).\n\n'
+      + 'PROSODY: Mix short and longer clauses. It is natural to self-correct once in a while: "It\'s about twelve minutes from Sonipat -- actually, scratch that, more like fifteen on a busy day." Commas and "..." create pauses in TTS — use them before numbers and important facts.\n\n'
+      + 'THINKING TIME: Pause before the main answer: "Hmm, let me put it this way...", "Oh, good question... give me a second...", "Right, so... what I\'d say is...". Use "I mean...", "honestly...", "look..."\n\n'
+      + 'FILLERS (almost every turn): So..., Well..., Okay..., Yeah..., Um..., You know..., Actually..., Right right..., Mm-hmm..., Totally...\n\n'
+      + 'PAUSES: "It\'s... fifteen and a half acres, licensed under DDJAY." Mid-thought: "Kharkhauda -- and this is the exciting bit -- is next to the IMT hub."\n\n'
+      + 'FLOW: React to their tone in one short phrase. Echo their words naturally. End with ONE gentle open question. Two or three short sentences max.\n\n'
       + 'GOOD: "Ohh, I love that question. So... um... we\'re most of the way through the boundary work, and roads are next. Does that help -- or want me to set up a visit?"\n'
       + 'BAD: "Boundary wall 80% complete. Roads planned. Schedule visit?" (robotic)\n\n'
       + 'NEVER: bullet points, lists, markdown, ALL CAPS, same opener every time, zero fillers.\n\n'
@@ -465,7 +603,7 @@
     var line = document.createElement('div');
     line.className = 'transcript-line ' + role + (isPartial ? ' partial-line' : '');
 
-    var roleLabel = role === 'assistant' ? 'Priya' : 'You';
+    var roleLabel = role === 'assistant' ? t('priya') : t('you');
     line.innerHTML =
       '<div class="role">' + escapeHtml(roleLabel) + '</div>' +
       '<div class="text' + (isPartial ? ' partial' : '') + '">' + escapeHtml(text) + '</div>';
@@ -481,11 +619,11 @@
     } else if (message.status === 'stopped' && message.role === 'assistant') {
       el.callAvatar.classList.remove('speaking');
       el.callAvatar.classList.add('listening');
-      setCallStatus('Listening...', true);
+      setCallStatus(t('listening'), true);
     } else if (message.status === 'started' && message.role === 'user') {
       el.callAvatar.classList.add('listening');
       el.callAvatar.classList.remove('speaking');
-      setCallStatus('You are speaking...', true);
+      setCallStatus(t('youSpeaking'), true);
     }
   }
 
@@ -536,7 +674,7 @@
         if (!lang || lang === currentLang) return;
 
         if (callActive) {
-          setStatus('End the current call before switching language.');
+          setStatus(t('endCallFirst'));
           return;
         }
 
@@ -549,9 +687,10 @@
           b.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
 
-        var langNames = { en: 'English', hi: 'Hindi', mr: 'Marathi' };
-        setStatus('Language: ' + langNames[currentLang]);
+        setStatus(t('languageSelected_' + currentLang));
         el.transcript.innerHTML = '';
+        updateTranscriptLanguageUI();
+        setCallStatus(t('ready'));
       });
     });
   }
